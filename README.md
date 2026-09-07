@@ -527,6 +527,6 @@ O Entity Framework Core realiza a aplicação das migrations necessárias durant
 * **Matheus de Almeida Sousa** - RM: 563557
 * **Paulo Estalise** - RM: 563811
 * **Gabriel Bebé Silva** - RM: 562012
-* **Emanuel Italo** - RM:561337
+* **Emanuel Italo** - RM: 561337
 
 ---
