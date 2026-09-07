@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace ClyvoVet.Api.Migrations
+namespace ClyvoVet.API.Infrastructure.Data.Migrations
 {
     /// <inheritdoc />
     public partial class AddPhoneAndAddressToUser : Migration

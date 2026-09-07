@@ -1,8 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace ClyvoVet.Api.Entities
+namespace ClyvoVet.API.Domain.Entities
 {
+    [Table("Pets")]
     public class Pet
     {
         public Guid Id { get; set; } = Guid.NewGuid();
@@ -13,9 +13,7 @@ namespace ClyvoVet.Api.Entities
         public string Color { get; set; } = string.Empty;
         public DateTime NextCheckup { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
         public Guid OwnerId { get; set; }
-        public User? Owner { get; set; } = null!;
-        
+        public User? Owner { get; set; }
     }
 }

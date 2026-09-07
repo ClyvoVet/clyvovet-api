@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
 COPY *.csproj ./
@@ -9,10 +9,15 @@ RUN dotnet publish -c Release -o out
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/out .
+RUN mkdir -p /app/logs && chown -R app:app /app
 
 EXPOSE 8080
 
 USER app
 
-ENTRYPOINT ["dotnet", "ClyvoVet.Api.dll"]
+ENTRYPOINT ["dotnet", "ClyvoVet.API.dll"]

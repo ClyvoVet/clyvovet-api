@@ -1,6 +1,27 @@
-@ClyvoVet.Api_HostAddress = http://localhost:5139
+@ClyvoVet_API_HostAddress = http://localhost:5139
 
-GET {{ClyvoVet.Api_HostAddress}}/weatherforecast/
+GET {{ClyvoVet_API_HostAddress}}/health/live
 Accept: application/json
 
 ###
+
+GET {{ClyvoVet_API_HostAddress}}/health/db
+Accept: application/json
+
+###
+
+GET {{ClyvoVet_API_HostAddress}}/metrics
+Accept: application/json
+
+###
+
+POST {{ClyvoVet_API_HostAddress}}/api/users/register
+Content-Type: application/json
+
+{
+  "name": "Usuario Teste",
+  "email": "usuario.teste@example.com",
+  "password": "SenhaTeste123456",
+  "phone": "11999999999",
+  "address": "Rua de teste"
+}

@@ -1,7 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
-namespace ClyvoVet.Api.Entities
+namespace ClyvoVet.API.Domain.Entities
 {
     [Table("Users")]
     public class User
@@ -19,14 +20,15 @@ namespace ClyvoVet.Api.Entities
 
         [Required(ErrorMessage = "A senha é obrigatória.")]
         [MinLength(6, ErrorMessage = "A senha deve ter pelo menos 6 caracteres.")]
+        [JsonIgnore]
         public string Password { get; set; } = string.Empty;
 
-		[StringLength(20)]
-		public string Phone { get; set; } = string.Empty;
+        [StringLength(20)]
+        public string Phone { get; set; } = string.Empty;
 
-		[StringLength(200)]
-		public string Address { get; set; } = string.Empty;
+        [StringLength(200)]
+        public string Address { get; set; } = string.Empty;
 
-        public ICollection<Pet>? Pets { get; set; } 
+        public ICollection<Pet>? Pets { get; set; }
     }
 }

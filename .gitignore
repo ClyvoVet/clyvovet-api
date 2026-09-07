@@ -5,7 +5,6 @@
 [Oo]bj/
 *.user
 *.suo
-
 # =========================
 # ARQUIVOS DO RIDER / JETBRAINS 
 # =========================
@@ -30,3 +29,12 @@
 # =========================
 .DS_Store
 Thumbs.db
+
+.vs/
+**/bin/
+**/obj/
+**/logs/
+*.userosscache
+*.sln.docstates
+.env
+

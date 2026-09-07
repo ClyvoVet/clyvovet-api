@@ -1,4 +1,4 @@
-﻿name: clyvovet
+name: clyvovet
 
 networks:
   clyvo-network:
@@ -47,7 +47,7 @@ services:
     networks:
       - clyvo-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5139/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:5139/health/live || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5
