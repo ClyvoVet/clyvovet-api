@@ -20,4 +20,4 @@ EXPOSE 8080
 
 USER app
 
-ENTRYPOINT ["dotnet", "ClyvoVet.API.dll"]
+ENTRYPOINT ["dotnet", "ClyvoVet.Api.dll"]
