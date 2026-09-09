@@ -11,12 +11,13 @@ namespace ClyvoVet.Tests.Integration
     public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
         public Mock<IPetUseCase> PetUseCaseMock { get; } = new();
-        public Mock<IUserUseCase> UserUseCaseMock { get; } = new();
+        public Mock<ITutorUseCase> TutorUseCaseMock { get; } = new();
+        public Mock<IConsultaUseCase> ConsultaUseCaseMock { get; } = new();
+        public Mock<IMedicacaoUseCase> MedicacaoUseCaseMock { get; } = new();
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
-
             builder.ConfigureAppConfiguration((_, configuration) =>
             {
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -27,13 +28,15 @@ namespace ClyvoVet.Tests.Integration
 
             builder.ConfigureServices(services =>
             {
-                // Mesmo padrao do projeto-modelo: nos testes de controller,
-                // substituimos apenas os UseCases por mocks.
                 services.RemoveAll(typeof(IPetUseCase));
-                services.RemoveAll(typeof(IUserUseCase));
+                services.RemoveAll(typeof(ITutorUseCase));
+                services.RemoveAll(typeof(IConsultaUseCase));
+                services.RemoveAll(typeof(IMedicacaoUseCase));
 
                 services.AddSingleton(PetUseCaseMock.Object);
-                services.AddSingleton(UserUseCaseMock.Object);
+                services.AddSingleton(TutorUseCaseMock.Object);
+                services.AddSingleton(ConsultaUseCaseMock.Object);
+                services.AddSingleton(MedicacaoUseCaseMock.Object);
             });
         }
     }

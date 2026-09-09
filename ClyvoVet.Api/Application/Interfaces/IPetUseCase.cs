@@ -6,11 +6,11 @@ namespace ClyvoVet.API.Application.Interfaces
     public interface IPetUseCase
     {
         Task<IEnumerable<Pet>> ObterTodosPetsAsync();
-        Task<Pet?> ObterUmPetAsync(Guid id);
-        Task<IEnumerable<Pet>> ObterPetsPorTutorAsync(Guid ownerId);
-        Task<IEnumerable<Pet>> ObterPetsPorEspecieAsync(string species);
+        Task<Pet?> ObterUmPetAsync(int id);
+        Task<IEnumerable<Pet>> ObterPetsPorTutorAsync(int idTutor);
+        Task<IEnumerable<Pet>> ObterPetsPorEspecieAsync(string especie);
         Task<Pet> AdicionarPetAsync(PetRequestDto model);
-        Task<Pet?> EditarPetAsync(Guid id, PetRequestDto model);
-        Task<Pet?> DeletarPetAsync(Guid id);
+        Task<Pet?> EditarPetAsync(int id, PetRequestDto model);
+        Task<Pet?> DeletarPetAsync(int id);
     }
 }

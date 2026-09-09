@@ -1,27 +1,79 @@
 @ClyvoVet_API_HostAddress = http://localhost:5139
 
+### Health - API
 GET {{ClyvoVet_API_HostAddress}}/health/live
 Accept: application/json
 
-###
-
+### Health - Oracle
 GET {{ClyvoVet_API_HostAddress}}/health/db
 Accept: application/json
 
-###
-
-GET {{ClyvoVet_API_HostAddress}}/metrics
+### Tutores - listar
+GET {{ClyvoVet_API_HostAddress}}/api/tutors
 Accept: application/json
 
-###
-
-POST {{ClyvoVet_API_HostAddress}}/api/users/register
+### Tutores - cadastrar
+POST {{ClyvoVet_API_HostAddress}}/api/tutors
 Content-Type: application/json
 
 {
-  "name": "Usuario Teste",
-  "email": "usuario.teste@example.com",
-  "password": "SenhaTeste123456",
-  "phone": "11999999999",
-  "address": "Rua de teste"
+  "idTutor": 1,
+  "nome": "Ana Beatriz Souza",
+  "email": "ana.souza@example.com",
+  "telefone": "11988887777",
+  "cpf": "104.332.181-00",
+  "senha": "123456"
 }
+
+### Tutores - login
+POST {{ClyvoVet_API_HostAddress}}/api/tutors/login
+Content-Type: application/json
+
+{
+  "email": "ana.souza@example.com",
+  "senha": "123456"
+}
+
+### Pets - cadastrar
+POST {{ClyvoVet_API_HostAddress}}/api/pets
+Content-Type: application/json
+
+{
+  "idPet": 1,
+  "idTutor": 1,
+  "nome": "Thor",
+  "especie": "Cachorro",
+  "raca": "Labrador",
+  "dataNascimento": "2021-03-10T00:00:00",
+  "pesoKg": 28.50
+}
+
+### Consultas - cadastrar
+POST {{ClyvoVet_API_HostAddress}}/api/consultas
+Content-Type: application/json
+
+{
+  "idConsulta": 1,
+  "idPet": 1,
+  "dataConsulta": "2026-01-10T00:00:00",
+  "veterinario": "Dr. Marcelo Lima",
+  "observacoes": "Consulta de rotina, animal saudavel"
+}
+
+### Medicacoes - cadastrar
+POST {{ClyvoVet_API_HostAddress}}/api/medicacoes
+Content-Type: application/json
+
+{
+  "idMedicacao": 1,
+  "idPet": 1,
+  "nome": "Vermifugo",
+  "dose": "1 comprimido",
+  "frequencia": "Dose unica",
+  "dataInicio": "2026-01-10T00:00:00",
+  "dataFim": "2026-01-10T00:00:00"
+}
+
+### Metricas
+GET {{ClyvoVet_API_HostAddress}}/metrics
+Accept: application/json

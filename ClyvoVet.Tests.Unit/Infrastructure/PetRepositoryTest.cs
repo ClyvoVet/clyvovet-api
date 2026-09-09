@@ -7,18 +7,23 @@ namespace ClyvoVet.Tests.Unit
 {
     public class PetRepositoryTest
     {
-        private readonly ApplicationContext _applicationContext;
-        private readonly PetRepository _petRepository;
+        private readonly ApplicationContext _context;
+        private readonly PetRepository _repository;
 
         public PetRepositoryTest()
         {
             var options = new DbContextOptionsBuilder<ApplicationContext>()
-                .UseInMemoryDatabase(databaseName: $"PetRepositoryTest-{Guid.NewGuid()}")
+                .UseInMemoryDatabase($"PetRepositoryTest-{Guid.NewGuid()}")
                 .Options;
+            _context = new ApplicationContext(options);
+            _context.Database.EnsureCreated();
+            _repository = new PetRepository(_context);
+        }
 
-            _applicationContext = new ApplicationContext(options);
-            _applicationContext.Database.EnsureCreated();
-            _petRepository = new PetRepository(_applicationContext);
+        private async Task AdicionarTutorAsync(int id = 1)
+        {
+            _context.Tutores.Add(new Tutor { IdTutor = id, Nome = $"Tutor {id}", Email = $"tutor{id}@example.com", Cpf = "104.332.181-00", Senha = "123456" });
+            await _context.SaveChangesAsync();
         }
 
         [Fact]
@@ -26,14 +31,14 @@ namespace ClyvoVet.Tests.Unit
         public async Task ObterTodosAsync_ComPetsCadastrados_DeveRetornarPets()
         {
             // Arrange
-            var ownerId = Guid.NewGuid();
-            _applicationContext.Pets.AddRange(
-                new Pet { Name = "Luna", Species = "Cachorro", OwnerId = ownerId },
-                new Pet { Name = "Mia", Species = "Gato", OwnerId = ownerId });
-            await _applicationContext.SaveChangesAsync();
+            await AdicionarTutorAsync();
+            _context.Pets.AddRange(
+                new Pet { IdPet = 1, IdTutor = 1, Nome = "Luna", Especie = "Cachorro" },
+                new Pet { IdPet = 2, IdTutor = 1, Nome = "Mia", Especie = "Gato" });
+            await _context.SaveChangesAsync();
 
             // Act
-            var resultado = await _petRepository.ObterTodosAsync();
+            var resultado = await _repository.ObterTodosAsync();
 
             // Assert
             Assert.Equal(2, resultado.Count());
@@ -44,16 +49,36 @@ namespace ClyvoVet.Tests.Unit
         public async Task ObterUmAsync_PetExistente_DeveRetornarPet()
         {
             // Arrange
-            var pet = new Pet { Name = "Luna", Species = "Cachorro", OwnerId = Guid.NewGuid() };
-            _applicationContext.Pets.Add(pet);
-            await _applicationContext.SaveChangesAsync();
+            await AdicionarTutorAsync();
+            _context.Pets.Add(new Pet { IdPet = 1, IdTutor = 1, Nome = "Luna", Especie = "Cachorro" });
+            await _context.SaveChangesAsync();
 
             // Act
-            var resultado = await _petRepository.ObterUmAsync(pet.Id);
+            var resultado = await _repository.ObterUmAsync(1);
 
             // Assert
             Assert.NotNull(resultado);
-            Assert.Equal(pet.Id, resultado.Id);
+            Assert.Equal(1, resultado.IdPet);
+        }
+
+        [Fact]
+        [Trait("Repository", "Pets")]
+        public async Task ObterPorTutorAsync_TutorComPets_DeveRetornarSomentePetsDoTutor()
+        {
+            // Arrange
+            await AdicionarTutorAsync(1);
+            await AdicionarTutorAsync(2);
+            _context.Pets.AddRange(
+                new Pet { IdPet = 1, IdTutor = 1, Nome = "Thor", Especie = "Cachorro" },
+                new Pet { IdPet = 2, IdTutor = 2, Nome = "Mel", Especie = "Cachorro" });
+            await _context.SaveChangesAsync();
+
+            // Act
+            var resultado = await _repository.ObterPorTutorAsync(1);
+
+            // Assert
+            Assert.Single(resultado);
+            Assert.Equal(1, resultado.Single().IdTutor);
         }
 
         [Fact]
@@ -61,15 +86,16 @@ namespace ClyvoVet.Tests.Unit
         public async Task AdicionarAsync_PetValido_DevePersistirPet()
         {
             // Arrange
-            var pet = new Pet { Name = "Thor", Species = "Cachorro", OwnerId = Guid.NewGuid() };
+            await AdicionarTutorAsync();
+            var pet = new Pet { IdPet = 3, IdTutor = 1, Nome = "Thor", Especie = "Cachorro" };
 
             // Act
-            var resultado = await _petRepository.AdicionarAsync(pet);
+            var resultado = await _repository.AdicionarAsync(pet);
 
             // Assert
-            var petNoDb = await _applicationContext.Pets.FirstOrDefaultAsync(x => x.Id == resultado.Id);
+            var petNoDb = await _context.Pets.FirstOrDefaultAsync(x => x.IdPet == resultado.IdPet);
             Assert.NotNull(petNoDb);
-            Assert.Equal("Thor", petNoDb.Name);
+            Assert.Equal("Thor", petNoDb.Nome);
         }
     }
 }

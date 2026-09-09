@@ -10,10 +10,7 @@ namespace ClyvoVet.API.Infrastructure.Data.Repositories
         private static readonly ActivitySource ActivitySource = new("ClyvoVet.Infrastructure");
         private readonly ApplicationContext _applicationContext;
 
-        public PetRepository(ApplicationContext applicationContext)
-        {
-            _applicationContext = applicationContext;
-        }
+        public PetRepository(ApplicationContext applicationContext) => _applicationContext = applicationContext;
 
         public async Task<IEnumerable<Pet>> ObterTodosAsync()
         {
@@ -21,25 +18,25 @@ namespace ClyvoVet.API.Infrastructure.Data.Repositories
             return await _applicationContext.Pets.AsNoTracking().ToListAsync();
         }
 
-        public async Task<Pet?> ObterUmAsync(Guid id)
+        public async Task<Pet?> ObterUmAsync(int id)
         {
             using var activity = ActivitySource.StartActivity("PetRepository.ObterUmAsync");
             activity?.SetTag("pet.id", id);
-            return await _applicationContext.Pets.FirstOrDefaultAsync(x => x.Id == id);
+            return await _applicationContext.Pets.FirstOrDefaultAsync(x => x.IdPet == id);
         }
 
-        public async Task<IEnumerable<Pet>> ObterPorTutorAsync(Guid ownerId)
+        public async Task<IEnumerable<Pet>> ObterPorTutorAsync(int idTutor)
         {
             using var activity = ActivitySource.StartActivity("PetRepository.ObterPorTutorAsync");
-            activity?.SetTag("owner.id", ownerId);
-            return await _applicationContext.Pets.AsNoTracking().Where(x => x.OwnerId == ownerId).ToListAsync();
+            activity?.SetTag("tutor.id", idTutor);
+            return await _applicationContext.Pets.AsNoTracking().Where(x => x.IdTutor == idTutor).ToListAsync();
         }
 
-        public async Task<IEnumerable<Pet>> ObterPorEspecieAsync(string species)
+        public async Task<IEnumerable<Pet>> ObterPorEspecieAsync(string especie)
         {
             using var activity = ActivitySource.StartActivity("PetRepository.ObterPorEspecieAsync");
-            activity?.SetTag("pet.species", species);
-            return await _applicationContext.Pets.AsNoTracking().Where(x => x.Species.ToLower() == species.ToLower()).ToListAsync();
+            activity?.SetTag("pet.especie", especie);
+            return await _applicationContext.Pets.AsNoTracking().Where(x => x.Especie.ToLower() == especie.ToLower()).ToListAsync();
         }
 
         public async Task<Pet> AdicionarAsync(Pet entity)
@@ -50,24 +47,20 @@ namespace ClyvoVet.API.Infrastructure.Data.Repositories
             return entity;
         }
 
-        public async Task<Pet?> EditarAsync(Guid id, Pet entity)
+        public async Task<Pet?> EditarAsync(int id, Pet entity)
         {
             using var activity = ActivitySource.StartActivity("PetRepository.EditarAsync");
-            if (id != entity.Id)
-                return null;
-
+            if (id != entity.IdPet) return null;
             _applicationContext.Pets.Update(entity);
             await _applicationContext.SaveChangesAsync();
             return entity;
         }
 
-        public async Task<Pet?> DeletarAsync(Guid id)
+        public async Task<Pet?> DeletarAsync(int id)
         {
             using var activity = ActivitySource.StartActivity("PetRepository.DeletarAsync");
-            var entity = await _applicationContext.Pets.FirstOrDefaultAsync(x => x.Id == id);
-            if (entity is null)
-                return null;
-
+            var entity = await _applicationContext.Pets.FirstOrDefaultAsync(x => x.IdPet == id);
+            if (entity is null) return null;
             _applicationContext.Pets.Remove(entity);
             await _applicationContext.SaveChangesAsync();
             return entity;

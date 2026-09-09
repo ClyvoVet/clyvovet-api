@@ -22,17 +22,16 @@ namespace ClyvoVet.Tests.Unit
         public async Task ObterUmPetAsync_PetExistente_DeveRetornarPet()
         {
             // Arrange
-            var id = Guid.NewGuid();
-            var pet = new Pet { Id = id, Name = "Luna", Species = "Cachorro" };
-            _petRepository.Setup(obj => obj.ObterUmAsync(id)).ReturnsAsync(pet);
+            var pet = new Pet { IdPet = 1, IdTutor = 1, Nome = "Luna", Especie = "Cachorro" };
+            _petRepository.Setup(x => x.ObterUmAsync(1)).ReturnsAsync(pet);
 
             // Act
-            var resultado = await _petUseCase.ObterUmPetAsync(id);
+            var resultado = await _petUseCase.ObterUmPetAsync(1);
 
             // Assert
             Assert.NotNull(resultado);
-            Assert.Equal(id, resultado.Id);
-            Assert.Equal("Luna", resultado.Name);
+            Assert.Equal(1, resultado.IdPet);
+            Assert.Equal("Luna", resultado.Nome);
         }
 
         [Fact]
@@ -40,30 +39,40 @@ namespace ClyvoVet.Tests.Unit
         public async Task AdicionarPetAsync_DadosValidos_DeveRetornarPetCriado()
         {
             // Arrange
-            var ownerId = Guid.NewGuid();
             var dto = new PetRequestDto
             {
-                Name = "Thor",
-                Species = "Cachorro",
-                Breed = "SRD",
-                Weight = 15,
-                Color = "Caramelo",
-                NextCheckup = DateTime.UtcNow.AddDays(30),
-                OwnerId = ownerId
+                IdPet = 2,
+                IdTutor = 1,
+                Nome = "Thor",
+                Especie = "Cachorro",
+                Raca = "Labrador",
+                DataNascimento = new DateTime(2021, 3, 10),
+                PesoKg = 28.50m
             };
-
-            _petRepository
-                .Setup(obj => obj.AdicionarAsync(It.IsAny<Pet>()))
-                .ReturnsAsync((Pet entity) => entity);
+            _petRepository.Setup(x => x.AdicionarAsync(It.IsAny<Pet>())).ReturnsAsync((Pet x) => x);
 
             // Act
             var resultado = await _petUseCase.AdicionarPetAsync(dto);
 
             // Assert
-            Assert.NotNull(resultado);
-            Assert.Equal(dto.Name, resultado.Name);
-            Assert.Equal(ownerId, resultado.OwnerId);
-            _petRepository.Verify(obj => obj.AdicionarAsync(It.IsAny<Pet>()), Times.Once);
+            Assert.Equal(dto.IdPet, resultado.IdPet);
+            Assert.Equal(dto.IdTutor, resultado.IdTutor);
+            Assert.Equal(dto.PesoKg, resultado.PesoKg);
+            _petRepository.Verify(x => x.AdicionarAsync(It.IsAny<Pet>()), Times.Once);
+        }
+
+        [Fact]
+        [Trait("UseCase", "Pets")]
+        public async Task ObterPetsPorTutorAsync_TutorComPets_DeveRetornarPets()
+        {
+            // Arrange
+            _petRepository.Setup(x => x.ObterPorTutorAsync(1)).ReturnsAsync(new[] { new Pet { IdPet = 1, IdTutor = 1, Nome = "Thor", Especie = "Cachorro" } });
+
+            // Act
+            var resultado = await _petUseCase.ObterPetsPorTutorAsync(1);
+
+            // Assert
+            Assert.Single(resultado);
         }
 
         [Fact]
@@ -71,11 +80,10 @@ namespace ClyvoVet.Tests.Unit
         public async Task DeletarPetAsync_PetInexistente_DeveRetornarNull()
         {
             // Arrange
-            var id = Guid.NewGuid();
-            _petRepository.Setup(obj => obj.DeletarAsync(id)).ReturnsAsync((Pet?)null);
+            _petRepository.Setup(x => x.DeletarAsync(999)).ReturnsAsync((Pet?)null);
 
             // Act
-            var resultado = await _petUseCase.DeletarPetAsync(id);
+            var resultado = await _petUseCase.DeletarPetAsync(999);
 
             // Assert
             Assert.Null(resultado);

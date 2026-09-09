@@ -9,6 +9,7 @@ namespace ClyvoVet.API.Application.Dtos
         public string Email { get; set; } = string.Empty;
 
         [Required]
-        public string Password { get; set; } = string.Empty;
+        [MinLength(6)]
+        public string Senha { get; set; } = string.Empty;
     }
 }

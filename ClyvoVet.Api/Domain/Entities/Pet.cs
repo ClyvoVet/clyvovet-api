@@ -1,19 +1,42 @@
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ClyvoVet.API.Domain.Entities
 {
-    [Table("Pets")]
+    [Table("PET")]
     public class Pet
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public string Name { get; set; } = string.Empty;
-        public string Species { get; set; } = string.Empty;
-        public string Breed { get; set; } = string.Empty;
-        public double Weight { get; set; }
-        public string Color { get; set; } = string.Empty;
-        public DateTime NextCheckup { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public Guid OwnerId { get; set; }
-        public User? Owner { get; set; }
+        [Key]
+        [Column("ID_PET")]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        public int IdPet { get; set; }
+
+        [Required]
+        [Column("ID_TUTOR")]
+        public int IdTutor { get; set; }
+
+        [Required(ErrorMessage = "O nome é obrigatório.")]
+        [StringLength(100)]
+        [Column("NOME")]
+        public string Nome { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "A espécie é obrigatória.")]
+        [StringLength(50)]
+        [Column("ESPECIE")]
+        public string Especie { get; set; } = string.Empty;
+
+        [StringLength(50)]
+        [Column("RACA")]
+        public string? Raca { get; set; }
+
+        [Column("DATA_NASC")]
+        public DateTime? DataNascimento { get; set; }
+
+        [Column("PESO_KG", TypeName = "NUMBER(5,2)")]
+        public decimal? PesoKg { get; set; }
+
+        public Tutor? Tutor { get; set; }
+        public ICollection<Consulta>? Consultas { get; set; }
+        public ICollection<Medicacao>? Medicacoes { get; set; }
     }
 }

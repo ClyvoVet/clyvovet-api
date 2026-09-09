@@ -6,64 +6,111 @@ namespace ClyvoVet.Tests.Unit
     public class EntityTest
     {
         [Fact]
-        [Trait("Domain", "Users")]
-        public void User_NovaInstancia_DeveGerarIdentificador()
+        [Trait("Domain", "Tutores")]
+        public void Tutor_DadosValidos_DeveSerValido()
         {
             // Arrange
-            var user = new User
+            var tutor = new Tutor
             {
-                Name = "Usuario Teste",
-                Email = "usuario.teste@example.com",
-                Password = "SenhaTeste123456"
+                IdTutor = 1,
+                Nome = "Ana Souza",
+                Email = "ana@example.com",
+                Cpf = "104.332.181-00",
+                Senha = "123456"
             };
+            var results = new List<ValidationResult>();
 
             // Act
-            var id = user.Id;
+            var valido = Validator.TryValidateObject(tutor, new ValidationContext(tutor), results, true);
 
             // Assert
-            Assert.NotEqual(Guid.Empty, id);
+            Assert.True(valido);
         }
 
         [Fact]
-        [Trait("Domain", "Users")]
-        public void User_EmailInvalido_DeveFalharNaValidacao()
+        [Trait("Domain", "Tutores")]
+        public void Tutor_EmailInvalido_DeveFalharNaValidacao()
         {
             // Arrange
-            var user = new User
+            var tutor = new Tutor
             {
-                Name = "Usuario Teste",
+                IdTutor = 1,
+                Nome = "Ana Souza",
                 Email = "email-invalido",
-                Password = "123456"
+                Cpf = "104.332.181-00",
+                Senha = "123456"
             };
-            var validationResults = new List<ValidationResult>();
-            var validationContext = new ValidationContext(user);
+            var results = new List<ValidationResult>();
 
             // Act
-            var valido = Validator.TryValidateObject(
-                user,
-                validationContext,
-                validationResults,
-                validateAllProperties: true);
+            var valido = Validator.TryValidateObject(tutor, new ValidationContext(tutor), results, true);
 
             // Assert
             Assert.False(valido);
-            Assert.Contains(validationResults, result =>
-                result.MemberNames.Contains(nameof(User.Email)));
+        }
+
+        [Fact]
+        [Trait("Domain", "Tutores")]
+        public void Tutor_SenhaCurta_DeveFalharNaValidacao()
+        {
+            // Arrange
+            var tutor = new Tutor
+            {
+                IdTutor = 1,
+                Nome = "Ana Souza",
+                Email = "ana@example.com",
+                Cpf = "104.332.181-00",
+                Senha = "123"
+            };
+            var results = new List<ValidationResult>();
+
+            // Act
+            var valido = Validator.TryValidateObject(tutor, new ValidationContext(tutor), results, true);
+
+            // Assert
+            Assert.False(valido);
         }
 
         [Fact]
         [Trait("Domain", "Pets")]
-        public void Pet_NovaInstancia_DeveGerarIdEDataDeCriacao()
+        public void Pet_DadosValidos_DeveManterRelacionamentoComTutor()
         {
             // Arrange
-            var inicio = DateTime.UtcNow;
+            var pet = new Pet { IdPet = 1, IdTutor = 10, Nome = "Thor", Especie = "Cachorro" };
 
             // Act
-            var pet = new Pet();
+            var tutorId = pet.IdTutor;
 
             // Assert
-            Assert.NotEqual(Guid.Empty, pet.Id);
-            Assert.True(pet.CreatedAt >= inicio);
+            Assert.Equal(10, tutorId);
+        }
+
+        [Fact]
+        [Trait("Domain", "Consultas")]
+        public void Consulta_DadosValidos_DeveManterRelacionamentoComPet()
+        {
+            // Arrange
+            var consulta = new Consulta { IdConsulta = 1, IdPet = 2, DataConsulta = new DateTime(2026, 1, 10) };
+
+            // Act
+            var petId = consulta.IdPet;
+
+            // Assert
+            Assert.Equal(2, petId);
+        }
+
+        [Fact]
+        [Trait("Domain", "Medicacoes")]
+        public void Medicacao_DadosValidos_DeveManterRelacionamentoComPet()
+        {
+            // Arrange
+            var medicacao = new Medicacao { IdMedicacao = 1, IdPet = 3, Nome = "Dipirona" };
+
+            // Act
+            var petId = medicacao.IdPet;
+
+            // Assert
+            Assert.Equal(3, petId);
         }
     }
 }

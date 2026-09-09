@@ -3,6 +3,7 @@ using System;
 using ClyvoVet.API.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Oracle.EntityFrameworkCore.Metadata;
 
@@ -11,9 +12,10 @@ using Oracle.EntityFrameworkCore.Metadata;
 namespace ClyvoVet.API.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationContext))]
-    partial class ApplicationContextModelSnapshot : ModelSnapshot
+    [Migration("20260908235000_AdaptarModeloClinico")]
+    partial class AdaptarModeloClinico
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -68,12 +70,22 @@ namespace ClyvoVet.API.Infrastructure.Data.Migrations
                 b.Property<string>("Cpf").IsRequired().HasMaxLength(14).HasColumnType("VARCHAR2(14)").HasColumnName("CPF");
                 b.Property<string>("Email").IsRequired().HasMaxLength(100).HasColumnType("VARCHAR2(100)").HasColumnName("EMAIL");
                 b.Property<string>("Nome").IsRequired().HasMaxLength(100).HasColumnType("VARCHAR2(100)").HasColumnName("NOME");
-                b.Property<string>("Senha").IsRequired().HasMaxLength(100).HasColumnType("VARCHAR2(100)").HasColumnName("SENHA");
                 b.Property<string>("Telefone").HasMaxLength(20).HasColumnType("VARCHAR2(20)").HasColumnName("TELEFONE");
                 b.HasKey("IdTutor");
                 b.ToTable("TUTOR");
             });
 
+            modelBuilder.Entity("ClyvoVet.API.Domain.Entities.User", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("RAW(16)");
+                b.Property<string>("Address").IsRequired().HasMaxLength(200).HasColumnType("NVARCHAR2(200)");
+                b.Property<string>("Email").IsRequired().HasColumnType("NVARCHAR2(2000)");
+                b.Property<string>("Name").IsRequired().HasMaxLength(100).HasColumnType("NVARCHAR2(100)");
+                b.Property<string>("Password").IsRequired().HasColumnType("NVARCHAR2(2000)");
+                b.Property<string>("Phone").IsRequired().HasMaxLength(20).HasColumnType("NVARCHAR2(20)");
+                b.HasKey("Id");
+                b.ToTable("Users");
+            });
 
             modelBuilder.Entity("ClyvoVet.API.Domain.Entities.Consulta", b =>
             {

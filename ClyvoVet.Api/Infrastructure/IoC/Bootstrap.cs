@@ -29,9 +29,15 @@ namespace ClyvoVet.API.Infrastructure.IoC
             });
 
             services.AddTransient<IPetRepository, PetRepository>();
-            services.AddTransient<IUserRepository, UserRepository>();
+            services.AddTransient<ITutorRepository, TutorRepository>();
+            services.AddTransient<IConsultaRepository, ConsultaRepository>();
+            services.AddTransient<IMedicacaoRepository, MedicacaoRepository>();
+
             services.AddTransient<IPetUseCase, PetUseCase>();
-            services.AddTransient<IUserUseCase, UserUseCase>();
+            services.AddTransient<ITutorUseCase, TutorUseCase>();
+            services.AddTransient<IConsultaUseCase, ConsultaUseCase>();
+            services.AddTransient<IMedicacaoUseCase, MedicacaoUseCase>();
+
             services.AddSingleton<ApiMetrics>();
 
             return services;
