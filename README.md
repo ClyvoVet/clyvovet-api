@@ -251,8 +251,6 @@ Respostas principais:
 - `400 Bad Request`: dados inválidos ou erro durante a operação;
 - `429 Too Many Requests`: limite de tentativas excedido.
 
-> A versão atual valida e-mail e senha no banco. Não é utilizado JWT ou token Bearer nesta implementação.
-
 ---
 
 # 📚 Endpoints da API
@@ -291,7 +289,6 @@ Respostas principais:
 | PUT | `/api/consultas/{id}` | Atualiza uma consulta |
 | DELETE | `/api/consultas/{id}` | Exclui uma consulta |
 
-No endpoint `GET /api/consultas/pet/{idPet}`, a existência do pet é verificada antes da consulta. Um pet inexistente resulta em `404 Not Found`; se o pet existir e não possuir consultas, a API retorna `200 OK` com uma coleção vazia.
 
 ## Medicações
 
@@ -310,23 +307,15 @@ No endpoint `GET /api/consultas/pet/{idPet}`, a existência do pet é verificada
 
 ## ❤️ Health Checks
 
-A aplicação utiliza `Microsoft.Extensions.Diagnostics.HealthChecks` para verificar a disponibilidade da própria API e a conectividade com o banco Oracle.
-
-### Health geral
-
-```http
-GET /health
-```
-
-Executa todos os Health Checks registrados na aplicação.
+A aplicação utiliza `Microsoft.Extensions.Diagnostics.HealthChecks` para verificar a disponibilidade da própria API e a conectividade com o banco Oracle. Os Health Checks são expostos exclusivamente pelo `HealthController`, evitando endpoints duplicados no `Program.cs`.
 
 ### Liveness da API
 
 ```http
-GET /health/live
+GET /api/health/live
 ```
 
-Verifica se a API está em execução sem depender da conexão com o banco.
+Executa somente o Health Check registrado com a tag `live` e verifica se a API está em execução sem depender da conexão com o banco.
 
 Quando saudável:
 
@@ -337,10 +326,10 @@ HTTP 200 OK
 ### Banco Oracle
 
 ```http
-GET /health/db
+GET /api/health/db
 ```
 
-Verifica se a aplicação consegue se conectar ao Oracle.
+Executa somente o Health Check registrado com a tag `db` e verifica se a aplicação consegue se conectar ao Oracle.
 
 Resultados esperados:
 
@@ -349,14 +338,7 @@ Oracle disponível   → HTTP 200 OK
 Oracle indisponível → HTTP 503 Service Unavailable
 ```
 
-### Endpoints de Health documentados no Swagger
-
-```http
-GET /api/health2/live
-GET /api/health2/db
-```
-
-Esses endpoints utilizam `HealthCheckService` e retornam informações estruturadas sobre o resultado da verificação.
+Os endpoints utilizam `HealthCheckService`, retornam informações estruturadas sobre as verificações e são documentados no Swagger.
 
 > A versão atual do ClyvoVet não integra uma dependência HTTP externa; por isso não existe Health Check de serviço externo nesta implementação.
 
@@ -369,33 +351,31 @@ Com a API em execução localmente:
 ### HTTP
 
 ```text
-http://localhost:5139/health
-http://localhost:5139/health/live
-http://localhost:5139/health/db
+http://localhost:5139/api/health/live
+http://localhost:5139/api/health/db
 http://localhost:5139/metrics
 ```
 
 ### HTTPS
 
 ```text
-https://localhost:7011/health
-https://localhost:7011/health/live
-https://localhost:7011/health/db
+https://localhost:7011/api/health/live
+https://localhost:7011/api/health/db
 https://localhost:7011/metrics
 ```
 
 Uma forma de validar o monitoramento do banco é:
 
 1. iniciar a API com o Oracle disponível;
-2. consultar `/health/live` e `/health/db`;
+2. consultar `/api/health/live` e `/api/health/db`;
 3. interromper temporariamente o Oracle;
 4. consultar novamente os endpoints.
 
 O comportamento esperado é:
 
 ```text
-/health/live → continua respondendo 200
-/health/db   → responde 503 enquanto o Oracle estiver indisponível
+/api/health/live → continua respondendo 200
+/api/health/db   → responde 503 enquanto o Oracle estiver indisponível
 ```
 
 ---
@@ -421,7 +401,6 @@ O padrão de arquivo é semelhante a:
 logs/api-AAAAMMdd.log
 ```
 
-Os arquivos são mantidos por até 7 dias conforme a configuração atual.
 
 ---
 
@@ -593,8 +572,8 @@ A versão atual possui:
 
 ```text
 28 testes Unit
-18 testes Integration
-46 testes no total
+17 testes Integration
+45 testes no total
 ```
 
 Todos os testes seguem explicitamente o padrão **AAA**:
@@ -739,8 +718,7 @@ O projeto possui `docker-compose.yml` com:
 - container da API;
 - rede dedicada;
 - volume persistente do Oracle;
-- Health Check do Oracle;
-- Health Check da API utilizando `/health/live`.
+
 
 As credenciais do banco devem ser fornecidas por variáveis de ambiente, como:
 

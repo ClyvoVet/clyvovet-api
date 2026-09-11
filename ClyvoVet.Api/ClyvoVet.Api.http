@@ -1,11 +1,11 @@
 @ClyvoVet_API_HostAddress = http://localhost:5139
 
 ### Health - API
-GET {{ClyvoVet_API_HostAddress}}/health/live
+GET {{ClyvoVet_API_HostAddress}}/api/health/live
 Accept: application/json
 
 ### Health - Oracle
-GET {{ClyvoVet_API_HostAddress}}/health/db
+GET {{ClyvoVet_API_HostAddress}}/api/health/db
 Accept: application/json
 
 ### Tutores - listar

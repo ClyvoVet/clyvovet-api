@@ -47,7 +47,7 @@ services:
     networks:
       - clyvo-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5139/health/live || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:5139/api/health/live || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5

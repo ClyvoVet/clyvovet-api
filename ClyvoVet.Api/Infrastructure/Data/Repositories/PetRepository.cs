@@ -15,28 +15,42 @@ namespace ClyvoVet.API.Infrastructure.Data.Repositories
         public async Task<IEnumerable<Pet>> ObterTodosAsync()
         {
             using var activity = ActivitySource.StartActivity("PetRepository.ObterTodosAsync");
-            return await _applicationContext.Pets.AsNoTracking().ToListAsync();
+            return await _applicationContext.Pets
+                .AsNoTracking()
+                .Include(x => x.Tutor)
+                .ToListAsync();
         }
 
         public async Task<Pet?> ObterUmAsync(int id)
         {
             using var activity = ActivitySource.StartActivity("PetRepository.ObterUmAsync");
             activity?.SetTag("pet.id", id);
-            return await _applicationContext.Pets.FirstOrDefaultAsync(x => x.IdPet == id);
+            return await _applicationContext.Pets
+                .AsNoTracking()
+                .Include(x => x.Tutor)
+                .FirstOrDefaultAsync(x => x.IdPet == id);
         }
 
         public async Task<IEnumerable<Pet>> ObterPorTutorAsync(int idTutor)
         {
             using var activity = ActivitySource.StartActivity("PetRepository.ObterPorTutorAsync");
             activity?.SetTag("tutor.id", idTutor);
-            return await _applicationContext.Pets.AsNoTracking().Where(x => x.IdTutor == idTutor).ToListAsync();
+            return await _applicationContext.Pets
+                .AsNoTracking()
+                .Include(x => x.Tutor)
+                .Where(x => x.IdTutor == idTutor)
+                .ToListAsync();
         }
 
         public async Task<IEnumerable<Pet>> ObterPorEspecieAsync(string especie)
         {
             using var activity = ActivitySource.StartActivity("PetRepository.ObterPorEspecieAsync");
             activity?.SetTag("pet.especie", especie);
-            return await _applicationContext.Pets.AsNoTracking().Where(x => x.Especie.ToLower() == especie.ToLower()).ToListAsync();
+            return await _applicationContext.Pets
+                .AsNoTracking()
+                .Include(x => x.Tutor)
+                .Where(x => x.Especie.ToLower() == especie.ToLower())
+                .ToListAsync();
         }
 
         public async Task<Pet> AdicionarAsync(Pet entity)

@@ -15,21 +15,31 @@ namespace ClyvoVet.API.Infrastructure.Data.Repositories
         public async Task<IEnumerable<Consulta>> ObterTodosAsync()
         {
             using var activity = ActivitySource.StartActivity("ConsultaRepository.ObterTodosAsync");
-            return await _applicationContext.Consultas.AsNoTracking().ToListAsync();
+            return await _applicationContext.Consultas
+                .AsNoTracking()
+                .Include(x => x.Pet)
+                .ToListAsync();
         }
 
         public async Task<Consulta?> ObterUmAsync(int id)
         {
             using var activity = ActivitySource.StartActivity("ConsultaRepository.ObterUmAsync");
             activity?.SetTag("consulta.id", id);
-            return await _applicationContext.Consultas.FirstOrDefaultAsync(x => x.IdConsulta == id);
+            return await _applicationContext.Consultas
+                .AsNoTracking()
+                .Include(x => x.Pet)
+                .FirstOrDefaultAsync(x => x.IdConsulta == id);
         }
 
         public async Task<IEnumerable<Consulta>> ObterPorPetAsync(int idPet)
         {
             using var activity = ActivitySource.StartActivity("ConsultaRepository.ObterPorPetAsync");
             activity?.SetTag("pet.id", idPet);
-            return await _applicationContext.Consultas.AsNoTracking().Where(x => x.IdPet == idPet).ToListAsync();
+            return await _applicationContext.Consultas
+                .AsNoTracking()
+                .Include(x => x.Pet)
+                .Where(x => x.IdPet == idPet)
+                .ToListAsync();
         }
 
         public async Task<Consulta> AdicionarAsync(Consulta entity)

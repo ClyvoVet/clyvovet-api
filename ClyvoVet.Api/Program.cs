@@ -2,10 +2,8 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Threading.RateLimiting;
 using ClyvoVet.API.Infrastructure.Data;
-using ClyvoVet.API.Infrastructure.HealthChecks;
 using ClyvoVet.API.Infrastructure.IoC;
 using ClyvoVet.API.Infrastructure.Observability;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +18,9 @@ using Swashbuckle.AspNetCore.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var logDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
+Directory.CreateDirectory(logDirectory);
+
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
@@ -27,13 +28,15 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.WithProperty("Application", "ClyvoVet.API")
     .WriteTo.Console()
     .WriteTo.File(
-        path: Path.Combine(AppContext.BaseDirectory, "logs", "api-.log"),
+        path: Path.Combine(logDirectory, "api-.log"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 7,
         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [CorrelationId:{CorrelationId}] [TraceId:{TraceId}] {SourceContext}{NewLine}  {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
 builder.Services.AddSerilog();
+
+Log.Information("Logging estruturado inicializado. Arquivos de log em {LogDirectory}", logDirectory);
 
 builder.Services.AddClyvoVetInfrastructure(builder.Configuration);
 
@@ -180,24 +183,6 @@ app.Use(async (context, next) =>
 app.UseAuthorization();
 app.UseRateLimiter();
 app.UseResponseCompression();
-
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    Predicate = _ => true,
-    ResponseWriter = HealthCheckResponseWriter.WriteAsync
-});
-
-app.MapHealthChecks("/health/live", new HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("live"),
-    ResponseWriter = HealthCheckResponseWriter.WriteAsync
-});
-
-app.MapHealthChecks("/health/db", new HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("db"),
-    ResponseWriter = HealthCheckResponseWriter.WriteAsync
-});
 
 app.MapGet("/metrics", (ApiMetrics metrics) => Results.Ok(metrics.GetSnapshot()));
 

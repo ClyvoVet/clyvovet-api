@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace ClyvoVet.API.Domain.Entities
 {
@@ -36,7 +37,10 @@ namespace ClyvoVet.API.Domain.Entities
         public decimal? PesoKg { get; set; }
 
         public Tutor? Tutor { get; set; }
+        [JsonIgnore]
         public ICollection<Consulta>? Consultas { get; set; }
+
+        [JsonIgnore]
         public ICollection<Medicacao>? Medicacoes { get; set; }
     }
 }
