@@ -169,7 +169,7 @@ jobs:
             FQDN=$(az container show \
               --resource-group "$RG_NAME" \
               --name "$CG_NAME" \
-              --query 'properties.ipAddress.fqdn' -o tsv 2>/dev/null || true)
+              --query 'ipAddress.fqdn' -o tsv 2>/dev/null || true)
             echo "FQDN capturado (tentativa ${fqdn_attempt}/3): '${FQDN}'"
             [[ -n "$FQDN" ]] && break
             [[ $fqdn_attempt -lt 3 ]] && sleep 15
