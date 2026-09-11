@@ -142,12 +142,18 @@ jobs:
           PYEOF
           python3 /tmp/gen_aci.py /tmp/aci.json
 
+      - name: Validar JSON do manifesto ACI
+        run: |
+          python3 -c "import json, sys; json.load(open('/tmp/aci.json'))" \
+            && echo "JSON valido" \
+            || { echo "ERRO: /tmp/aci.json esta malformado -- corrija o step anterior"; exit 1; }
+
       - name: Provisionar container group no ACI
         run: |
           az container create \
             --resource-group "$RG_NAME" \
             --file /tmp/aci.json \
-            --output table
+            --output json
 
       - name: Aguardar inicializacao da stack (Oracle + wait-for-oracle + API)
         run: |
