@@ -206,15 +206,34 @@ app.MapControllers();
 if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
-    try
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
+
+    const int maxRetries = 6;
+    const int retryDelaySeconds = 20;
+
+    for (var attempt = 1; attempt <= maxRetries; attempt++)
     {
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
-        context.Database.Migrate();
-        Log.Information("Migrations do banco de dados aplicadas/verificadas com sucesso");
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "Erro ao executar migrations na inicialização");
+        try
+        {
+            dbContext.Database.Migrate();
+            Log.Information("Migrations do banco de dados aplicadas/verificadas com sucesso");
+            break;
+        }
+        catch (Exception ex) when (attempt < maxRetries)
+        {
+            Log.Warning(ex,
+                "Tentativa {Attempt}/{Max} de aplicar migrations falhou (Oracle ainda inicializando). " +
+                "Proxima tentativa em {Delay}s...",
+                attempt, maxRetries, retryDelaySeconds);
+            Thread.Sleep(TimeSpan.FromSeconds(retryDelaySeconds));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex,
+                "Todas as {Max} tentativas de aplicar migrations falharam. " +
+                "A API iniciara sem garantia de schema atualizado.",
+                maxRetries);
+        }
     }
 }
 

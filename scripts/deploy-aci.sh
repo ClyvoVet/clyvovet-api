@@ -389,8 +389,10 @@ manifest = {
                     'command': [
                         'bash', '-c',
                         'until (echo > /dev/tcp/localhost/1521) 2>/dev/null; '
-                        'do echo "Aguardando Oracle..."; sleep 5; done; '
-                        'echo "Oracle disponivel, iniciando API"; '
+                        'do echo "Aguardando Oracle listener..."; sleep 5; done; '
+                        'echo "Listener Oracle respondeu -- aguardando abertura do banco (+60s)..."; '
+                        'sleep 60; '
+                        'echo "Iniciando API"; '
                         'exec dotnet ClyvoVet.Api.dll'
                     ],
                     'ports': [{'port': 5139, 'protocol': 'TCP'}],
@@ -462,7 +464,7 @@ properties:
       command:
       - bash
       - -c
-      - 'until (echo > /dev/tcp/localhost/1521) 2>/dev/null; do echo "Aguardando Oracle..."; sleep 5; done; echo "Oracle disponivel, iniciando API"; exec dotnet ClyvoVet.Api.dll'
+      - 'until (echo > /dev/tcp/localhost/1521) 2>/dev/null; do echo "Aguardando Oracle listener..."; sleep 5; done; echo "Listener Oracle respondeu -- aguardando abertura do banco (+60s)..."; sleep 60; echo "Iniciando API"; exec dotnet ClyvoVet.Api.dll'
       ports:
       - port: 5139
         protocol: TCP
