@@ -130,7 +130,8 @@ Principais campos:
 - Docker
 - Oracle Database
 - Microsoft Azure
-- Azure Container Registry
+- Azure Container Registry (ACR)
+- Azure Container Instances (ACI)
 - GitHub Actions
 
 ---
@@ -757,13 +758,13 @@ ORACLE_APP_PASSWORD
 A estrutura de DevOps do projeto contempla:
 
 - Microsoft Azure;
-- Azure Container Registry;
-- Azure Virtual Machine;
+- Azure Container Registry (ACR);
+- Azure Container Instances (ACI);
 - Docker;
 - GitHub Actions;
 - deploy da imagem da API em container.
 
-O repositório possui workflows separados para CI e deploy. A execução local dos testes continua disponível pelos comandos `dotnet test` documentados acima.
+O provisionamento da infraestrutura ACI é realizado pelo script `scripts/deploy-aci.sh`, que cria o container group com a API .NET 8 e o Oracle DB em rede local compartilhada. O repositório possui workflows separados para CI e deploy. A execução local dos testes continua disponível pelos comandos `dotnet test` documentados acima.
 
 ---
 
