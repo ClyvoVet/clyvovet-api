@@ -162,10 +162,23 @@ jobs:
 
       - name: Verificar saude do banco (/health/db)
         run: |
-          FQDN=$(az container show \
-            --resource-group "$RG_NAME" \
-            --name "$CG_NAME" \
-            --query 'properties.ipAddress.fqdn' -o tsv)
+          sleep 10
+
+          FQDN=""
+          for fqdn_attempt in 1 2 3; do
+            FQDN=$(az container show \
+              --resource-group "$RG_NAME" \
+              --name "$CG_NAME" \
+              --query 'properties.ipAddress.fqdn' -o tsv 2>/dev/null || true)
+            echo "FQDN capturado (tentativa ${fqdn_attempt}/3): '${FQDN}'"
+            [[ -n "$FQDN" ]] && break
+            [[ $fqdn_attempt -lt 3 ]] && sleep 15
+          done
+
+          if [[ -z "$FQDN" ]]; then
+            echo "ERRO: FQDN nao disponivel apos 3 tentativas -- verifique se o DNS label foi aceito pelo Azure"
+            exit 1
+          fi
 
           HEALTH_URL="http://${FQDN}:${API_PORT}/health/db"
           echo "Testando: ${HEALTH_URL}"
