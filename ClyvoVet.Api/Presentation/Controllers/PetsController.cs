@@ -2,7 +2,6 @@ using ClyvoVet.API.Application.Dtos;
 using ClyvoVet.API.Application.Interfaces;
 using ClyvoVet.API.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ClyvoVet.API.Presentation.Controllers
@@ -63,7 +62,6 @@ namespace ClyvoVet.API.Presentation.Controllers
         }
 
         [HttpGet]
-        [EnableRateLimiting("politica_5_tentativas")]
         [SwaggerOperation(
             Summary = "Listar todos os pets",
             Description = """
@@ -75,13 +73,11 @@ namespace ClyvoVet.API.Presentation.Controllers
             3. Retorna a coleção de pets quando existirem registros.
 
             ### Observações
-            * Este endpoint possui Rate Limiting.
             * Caso não existam pets cadastrados, o endpoint retorna status **204 No Content**.
             """)]
         [SwaggerResponse(200, "Lista de pets retornada com sucesso", typeof(IEnumerable<Pet>))]
         [SwaggerResponse(204, "Não há pets cadastrados")]
         [SwaggerResponse(400, "Erro ao consultar os pets")]
-        [SwaggerResponse(429, "Limite de requisições excedido")]
         public async Task<IActionResult> Get()
         {
             try

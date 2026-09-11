@@ -2,7 +2,6 @@ using ClyvoVet.API.Application.Dtos;
 using ClyvoVet.API.Application.Interfaces;
 using ClyvoVet.API.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ClyvoVet.API.Presentation.Controllers
@@ -62,7 +61,6 @@ namespace ClyvoVet.API.Presentation.Controllers
         }
 
         [HttpGet]
-        [EnableRateLimiting("politica_5_tentativas")]
         [SwaggerOperation(
             Summary = "Listar todas as medicações",
             Description = """
@@ -74,13 +72,11 @@ namespace ClyvoVet.API.Presentation.Controllers
             3. Retorna a coleção de medicações quando existirem registros.
 
             ### Observações
-            * Este endpoint possui Rate Limiting.
             * Caso não existam medicações cadastradas, o endpoint retorna status **204 No Content**.
             """)]
         [SwaggerResponse(200, "Lista de medicações retornada com sucesso", typeof(IEnumerable<Medicacao>))]
         [SwaggerResponse(204, "Não há medicações cadastradas")]
         [SwaggerResponse(400, "Erro ao consultar as medicações")]
-        [SwaggerResponse(429, "Limite de requisições excedido")]
         public async Task<IActionResult> Get()
         {
             try

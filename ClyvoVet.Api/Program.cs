@@ -1,10 +1,8 @@
 using System.Diagnostics;
 using System.IO.Compression;
-using System.Threading.RateLimiting;
 using ClyvoVet.API.Infrastructure.Data;
 using ClyvoVet.API.Infrastructure.IoC;
 using ClyvoVet.API.Infrastructure.Observability;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -64,19 +62,6 @@ builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
 builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 {
     options.Level = CompressionLevel.Fastest;
-});
-
-builder.Services.AddRateLimiter(options =>
-{
-    options.AddFixedWindowLimiter(policyName: "politica_5_tentativas", opt =>
-    {
-        opt.PermitLimit = 5;
-        opt.Window = TimeSpan.FromSeconds(20);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 2;
-    });
-
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
 builder.Services.AddHealthChecks()
@@ -181,7 +166,6 @@ app.Use(async (context, next) =>
 });
 
 app.UseAuthorization();
-app.UseRateLimiter();
 app.UseResponseCompression();
 
 app.MapGet("/metrics", (ApiMetrics metrics) => Results.Ok(metrics.GetSnapshot()));

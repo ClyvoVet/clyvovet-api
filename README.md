@@ -249,7 +249,6 @@ Respostas principais:
 - `200 OK`: credenciais válidas;
 - `401 Unauthorized`: e-mail ou senha incorretos;
 - `400 Bad Request`: dados inválidos ou erro durante a operação;
-- `429 Too Many Requests`: limite de tentativas excedido.
 
 ---
 
@@ -537,25 +536,6 @@ As descrições incluem, conforme aplicável:
 - fluxo de processamento;
 - observações importantes;
 - códigos de resposta HTTP.
-
----
-
-# ⏱️ Rate Limiting
-
-A aplicação possui uma política de limite de requisições chamada:
-
-```text
-politica_5_tentativas
-```
-
-Configuração atual:
-
-- 5 requisições por janela;
-- janela de 20 segundos;
-- fila de até 2 requisições;
-- retorno `429 Too Many Requests` quando o limite é excedido.
-
-Essa política é aplicada, entre outros pontos, ao login de Tutor e a endpoints de listagem configurados no projeto.
 
 ---
 

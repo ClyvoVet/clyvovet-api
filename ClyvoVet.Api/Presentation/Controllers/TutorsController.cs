@@ -2,7 +2,6 @@ using ClyvoVet.API.Application.Dtos;
 using ClyvoVet.API.Application.Interfaces;
 using ClyvoVet.API.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ClyvoVet.API.Presentation.Controllers
@@ -69,7 +68,6 @@ namespace ClyvoVet.API.Presentation.Controllers
         }
 
         [HttpPost("login")]
-        [EnableRateLimiting("politica_5_tentativas")]
         [SwaggerOperation(
             Summary = "Autenticar tutor",
             Description = """
@@ -85,13 +83,11 @@ namespace ClyvoVet.API.Presentation.Controllers
             3. Retorna o tutor quando as credenciais são válidas.
 
             ### Observações
-            * Este endpoint possui Rate Limiting para limitar tentativas consecutivas de autenticação.
             * A senha não é retornada na resposta da API.
             """)]
         [SwaggerResponse(200, "Tutor autenticado com sucesso", typeof(Tutor))]
         [SwaggerResponse(401, "E-mail ou senha incorretos")]
         [SwaggerResponse(400, "Dados inválidos ou erro durante a autenticação")]
-        [SwaggerResponse(429, "Limite de tentativas de autenticação excedido")]
         public async Task<ActionResult<Tutor>> Login(LoginRequestDto model)
         {
             try
@@ -114,7 +110,6 @@ namespace ClyvoVet.API.Presentation.Controllers
         }
 
         [HttpGet]
-        [EnableRateLimiting("politica_5_tentativas")]
         [SwaggerOperation(
             Summary = "Listar todos os tutores",
             Description = """
@@ -126,14 +121,12 @@ namespace ClyvoVet.API.Presentation.Controllers
             3. Retorna a coleção de tutores quando existirem registros.
 
             ### Observações
-            * Este endpoint possui Rate Limiting.
             * Caso não existam tutores cadastrados, o endpoint retorna status **204 No Content**.
             * A senha dos tutores não é exibida na resposta.
             """)]
         [SwaggerResponse(200, "Lista de tutores retornada com sucesso", typeof(IEnumerable<Tutor>))]
         [SwaggerResponse(204, "Não há tutores cadastrados")]
         [SwaggerResponse(400, "Erro ao consultar os tutores")]
-        [SwaggerResponse(429, "Limite de requisições excedido")]
         public async Task<IActionResult> Get()
         {
             try
