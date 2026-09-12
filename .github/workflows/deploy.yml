@@ -1,4 +1,4 @@
-﻿name: ClyvoVet CD - Build & Deploy
+name: ClyvoVet CD - Build & Deploy
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
   build-and-push:
     name: Build & Push to ACR
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout do código-fonte
         uses: actions/checkout@v4
@@ -31,27 +31,171 @@ jobs:
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/clyvovet-api:latest
 
 
-  deploy-to-vm:
-    name: Deploy to Azure VM
+  deploy-to-aci:
+    name: Deploy to Azure Container Instances
     needs: build-and-push
     runs-on: ubuntu-latest
-    
+
+    env:
+      RG_NAME: rg-clyvovet-aci
+      CG_NAME: cg-clyvovet
+      LOCATION: brazilsouth
+      DNS_LABEL: clyvovet-api-rm562012
+      API_PORT: "5139"
+
     steps:
-      - name: 🔌 Conectar na VM e Atualizar Stack
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Login na Azure
+        uses: azure/login@v2
         with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USERNAME }}
-          password: ${{ secrets.VM_PASSWORD }}
-          script: |
-            # 1. Faz o login no cofre do ACR de dentro da VM
-            echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} --password-stdin
-            
-            # 2. Entra na pasta da nossa infraestrutura
-            cd /opt/clyvovet
-            
-            # 3. Baixa a nova versão do sistema (ignorando o que está rodando)
-            docker compose pull clyvo-api
-            
-            # 4. Levanta a aplicação com a imagem fresca (sem mexer no Oracle)
-            docker compose up -d clyvo-api
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deletar container group anterior (se existir)
+        run: |
+          az container delete \
+            --resource-group "$RG_NAME" \
+            --name "$CG_NAME" \
+            --yes 2>/dev/null || true
+
+      - name: Gerar manifesto do container group ACI
+        env:
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          ORACLE_ROOT_PASSWORD: ${{ secrets.ORACLE_ROOT_PASSWORD }}
+          ORACLE_APP_USER: ${{ secrets.ORACLE_APP_USER }}
+          ORACLE_APP_PASSWORD: ${{ secrets.ORACLE_APP_PASSWORD }}
+        run: |
+          cat > /tmp/gen_aci.py << 'PYEOF'
+          import json, os, sys
+
+          out            = sys.argv[1]
+          location       = os.environ['LOCATION']
+          cg_name        = os.environ['CG_NAME']
+          acr_server     = os.environ['ACR_LOGIN_SERVER']
+          acr_user       = os.environ['ACR_USERNAME']
+          acr_pass       = os.environ['ACR_PASSWORD']
+          dns_label      = os.environ['DNS_LABEL']
+          oracle_root_pw = os.environ['ORACLE_ROOT_PASSWORD']
+          oracle_app_usr = os.environ['ORACLE_APP_USER']
+          oracle_app_pw  = os.environ['ORACLE_APP_PASSWORD']
+
+          api_image = f"{acr_server}/clyvovet-api:latest"
+          conn_str  = f"Data Source=localhost:1521/FREEPDB1;User Id={oracle_app_usr};Password={oracle_app_pw};"
+          wait_cmd  = (
+              "until (echo > /dev/tcp/localhost/1521) 2>/dev/null; "
+              "do echo 'Aguardando Oracle listener...'; sleep 5; done; "
+              "echo 'Listener Oracle respondeu -- aguardando abertura do banco (+60s)...'; "
+              "sleep 60; echo 'Iniciando API'; exec dotnet ClyvoVet.Api.dll"
+          )
+
+          manifest = {
+              "apiVersion": "2021-10-01",
+              "location": location,
+              "name": cg_name,
+              "type": "Microsoft.ContainerInstance/containerGroups",
+              "properties": {
+                  "osType": "Linux",
+                  "restartPolicy": "Always",
+                  "imageRegistryCredentials": [
+                      {"server": acr_server, "username": acr_user, "password": acr_pass}
+                  ],
+                  "ipAddress": {
+                      "type": "Public",
+                      "dnsNameLabel": dns_label,
+                      "ports": [{"protocol": "TCP", "port": 5139}]
+                  },
+                  "containers": [
+                      {
+                          "name": "db-oracle",
+                          "properties": {
+                              "image": "gvenzl/oracle-free:latest",
+                              "resources": {"requests": {"cpu": 2.0, "memoryInGB": 4.0}},
+                              "ports": [{"port": 1521, "protocol": "TCP"}],
+                              "environmentVariables": [
+                                  {"name": "ORACLE_PASSWORD",   "secureValue": oracle_root_pw},
+                                  {"name": "APP_USER",          "value":       oracle_app_usr},
+                                  {"name": "APP_USER_PASSWORD", "secureValue": oracle_app_pw}
+                              ]
+                          }
+                      },
+                      {
+                          "name": "clyvo-api",
+                          "properties": {
+                              "image": api_image,
+                              "resources": {"requests": {"cpu": 1.0, "memoryInGB": 1.5}},
+                              "command": ["bash", "-c", wait_cmd],
+                              "ports": [{"port": 5139, "protocol": "TCP"}],
+                              "environmentVariables": [
+                                  {"name": "ASPNETCORE_ENVIRONMENT",               "value":       "Production"},
+                                  {"name": "ASPNETCORE_URLS",                      "value":       "http://+:5139"},
+                                  {"name": "ConnectionStrings__OracleDbConnection", "secureValue": conn_str}
+                              ]
+                          }
+                      }
+                  ]
+              }
+          }
+
+          with open(out, "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2, ensure_ascii=False)
+          print("Manifesto ACI gerado em: " + out)
+          PYEOF
+          python3 /tmp/gen_aci.py /tmp/aci.json
+
+      - name: Validar JSON do manifesto ACI
+        run: |
+          python3 -c "import json, sys; json.load(open('/tmp/aci.json'))" \
+            && echo "JSON valido" \
+            || { echo "ERRO: /tmp/aci.json esta malformado -- corrija o step anterior"; exit 1; }
+
+      - name: Provisionar container group no ACI
+        run: |
+          az container create \
+            --resource-group "$RG_NAME" \
+            --file /tmp/aci.json \
+            --output json
+
+      - name: Aguardar inicializacao da stack (Oracle + wait-for-oracle + API)
+        run: |
+          echo "Aguardando 3 minutos para Oracle inicializar e API subir..."
+          sleep 180
+
+      - name: Verificar saude do banco (/health/db)
+        run: |
+          sleep 10
+
+          FQDN=""
+          for fqdn_attempt in 1 2 3; do
+            FQDN=$(az container show \
+              --resource-group "$RG_NAME" \
+              --name "$CG_NAME" \
+              --query 'ipAddress.fqdn' -o tsv 2>/dev/null || true)
+            echo "FQDN capturado (tentativa ${fqdn_attempt}/3): '${FQDN}'"
+            [[ -n "$FQDN" ]] && break
+            [[ $fqdn_attempt -lt 3 ]] && sleep 15
+          done
+
+          if [[ -z "$FQDN" ]]; then
+            echo "ERRO: FQDN nao disponivel apos 3 tentativas -- verifique se o DNS label foi aceito pelo Azure"
+            exit 1
+          fi
+
+          HEALTH_URL="http://${FQDN}:${API_PORT}/health/db"
+          echo "Testando: ${HEALTH_URL}"
+
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${HEALTH_URL}" || echo "000")
+            echo "Tentativa ${i}/10: HTTP ${STATUS}"
+            if [[ "${STATUS}" == "200" ]]; then
+              echo "Deploy verificado -- Oracle acessivel via /health/db"
+              exit 0
+            fi
+            [[ $i -lt 10 ]] && sleep 30
+          done
+
+          echo "ERRO: /health/db nao respondeu HTTP 200 apos 10 tentativas (~5 min)"
+          az container logs \
+            --resource-group "$RG_NAME" \
+            --name "$CG_NAME" \
+            --container-name clyvo-api || true
+          exit 1
