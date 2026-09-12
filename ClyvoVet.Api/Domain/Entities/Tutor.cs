@@ -38,6 +38,7 @@ namespace ClyvoVet.API.Domain.Entities
         [JsonIgnore]
         public string Senha { get; set; } = string.Empty;
 
+        [JsonIgnore]
         public ICollection<Pet>? Pets { get; set; }
     }
 }

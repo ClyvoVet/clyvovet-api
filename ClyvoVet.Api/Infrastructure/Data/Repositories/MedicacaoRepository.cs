@@ -15,21 +15,31 @@ namespace ClyvoVet.API.Infrastructure.Data.Repositories
         public async Task<IEnumerable<Medicacao>> ObterTodosAsync()
         {
             using var activity = ActivitySource.StartActivity("MedicacaoRepository.ObterTodosAsync");
-            return await _applicationContext.Medicacoes.AsNoTracking().ToListAsync();
+            return await _applicationContext.Medicacoes
+                .AsNoTracking()
+                .Include(x => x.Pet)
+                .ToListAsync();
         }
 
         public async Task<Medicacao?> ObterUmAsync(int id)
         {
             using var activity = ActivitySource.StartActivity("MedicacaoRepository.ObterUmAsync");
             activity?.SetTag("medicacao.id", id);
-            return await _applicationContext.Medicacoes.FirstOrDefaultAsync(x => x.IdMedicacao == id);
+            return await _applicationContext.Medicacoes
+                .AsNoTracking()
+                .Include(x => x.Pet)
+                .FirstOrDefaultAsync(x => x.IdMedicacao == id);
         }
 
         public async Task<IEnumerable<Medicacao>> ObterPorPetAsync(int idPet)
         {
             using var activity = ActivitySource.StartActivity("MedicacaoRepository.ObterPorPetAsync");
             activity?.SetTag("pet.id", idPet);
-            return await _applicationContext.Medicacoes.AsNoTracking().Where(x => x.IdPet == idPet).ToListAsync();
+            return await _applicationContext.Medicacoes
+                .AsNoTracking()
+                .Include(x => x.Pet)
+                .Where(x => x.IdPet == idPet)
+                .ToListAsync();
         }
 
         public async Task<Medicacao> AdicionarAsync(Medicacao entity)

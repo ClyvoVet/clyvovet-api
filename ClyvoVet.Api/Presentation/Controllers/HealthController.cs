@@ -5,7 +5,7 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace ClyvoVet.API.Presentation.Controllers
 {
-    [Route("api/health2")]
+    [Route("api/health")]
     [ApiController]
     [AllowAnonymous]
     public class HealthController : ControllerBase
