@@ -22,6 +22,32 @@ Nesta Sprint 3 o projeto foi evoluído principalmente nos seguintes pontos:
 
 ---
 
+## 📑 Índice
+
+- [Sobre o Projeto](#-sobre-o-projeto)
+- [Modelo de Dados](#-modelo-de-dados)
+- [Tecnologias Utilizadas](#-tecnologias-utilizadas)
+- [Arquitetura da Aplicação](#-arquitetura-da-aplicação)
+- [Autenticação de Tutores](#-autenticação-de-tutores)
+- [Endpoints da API](#-endpoints-da-api)
+- [Monitoramento e Observabilidade](#-monitoramento-e-observabilidade)
+  - [Health Checks](#️-health-checks)
+  - [Como monitorar a aplicação](#-como-monitorar-a-aplicação)
+- [Logging Estruturado](#-logging-estruturado)
+  - [Correlação de Requisições](#-correlação-de-requisições)
+- [Distributed Tracing com OpenTelemetry](#-distributed-tracing-com-opentelemetry)
+- [Métricas](#-métricas)
+- [Swagger](#-swagger)
+- [Testes Automatizados](#-testes-automatizados)
+  - [Testes Unitários](#-testes-unitários)
+  - [Testes de Integração](#-testes-de-integração)
+- [Como Executar os Testes](#️-como-executar-os-testes)
+- [Executando a Aplicação Localmente](#-executando-a-aplicação-localmente)
+- [Docker](#-docker)
+- [Infraestrutura de Nuvem](#️-infraestrutura-de-nuvem)
+- [Integrantes do Grupo](#-integrantes-do-grupo)
+
+
 ## 🐾 Modelo de Dados
 
 O modelo atual da aplicação é composto pelas entidades:
@@ -141,7 +167,7 @@ Principais campos:
 A API está organizada nas seguintes camadas:
 
 ```text
-ClyvoVet.API/
+ClyvoVet.Api/
 ├── Application/
 │   ├── Dtos/
 │   ├── Interfaces/
@@ -667,18 +693,59 @@ Os testes também podem ser executados através do **Test Explorer** do Visual S
 
 ## Pré-requisitos
 
-- .NET 8 SDK;
-- Visual Studio 2022 ou outra IDE compatível;
-- Oracle Database acessível;
-- Docker Desktop, caso o Oracle seja executado em container.
+Antes de iniciar a API, certifique-se de possuir:
 
-Configure a connection string Oracle e execute:
+- **.NET 8 SDK** instalado;
+- **Visual Studio 2022** ou outra IDE compatível com .NET 8;
+- acesso a uma instância do **Oracle Database**;
+- usuário e senha válidos para o schema Oracle que será utilizado pela aplicação;
+- **Docker Desktop** somente se optar por executar o Oracle em container.
 
-```bash
-dotnet run --project ./ClyvoVet.API/ClyvoVet.API.csproj
+## Configuração das credenciais do Oracle
+
+A connection string utilizada no ambiente de desenvolvimento fica no arquivo:
+
+```text
+ClyvoVet.Api/appsettings.Development.json
 ```
 
-Ou execute pelo Visual Studio utilizando `F5`.
+O projeto é entregue com a estrutura da connection string já configurada, porém **sem usuário e senha do banco**. Os campos `User Id` e `Password` devem ser preenchidos com as credenciais do Oracle de quem estiver executando a aplicação.
+
+Exemplo:
+
+```json
+{
+  "ConnectionStrings": {
+    "OracleDbConnection": "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=oracle.fiap.com.br)(PORT=1521))) (CONNECT_DATA=(SERVER=DEDICATED)(SID=ORCL)));User Id=SEU_USUARIO;Password=SUA_SENHA;"
+  }
+}
+```
+
+
+
+Antes de executar o projeto, substitua os campos vazios pelas suas próprias credenciais.
+
+
+
+## Executando pelo terminal
+
+Na pasta raiz do repositório, execute:
+
+```bash
+dotnet restore
+dotnet run --project ./ClyvoVet.Api/ClyvoVet.Api.csproj
+```
+
+O `launchSettings.json` configura o ambiente como `Development`, fazendo com que o ASP.NET Core carregue também o `appsettings.Development.json`.
+
+Durante a inicialização, a aplicação executa as migrations do Entity Framework Core automaticamente. Por isso, o usuário Oracle informado deve possuir as permissões necessárias no schema utilizado pela aplicação.
+
+## Executando pelo Visual Studio
+
+1. Abra a solução do projeto no Visual Studio;
+
+2. confirme que as credenciais do Oracle foram preenchidas em `appsettings.Development.json`;
+3. execute utilizando `F5` ou o botão de execução da IDE.
 
 Os perfis atuais utilizam:
 
@@ -687,7 +754,15 @@ HTTP  → http://localhost:5139
 HTTPS → https://localhost:7011
 ```
 
-O Swagger é aberto automaticamente pelo `launchSettings.json`.
+O Swagger é aberto automaticamente pelo `launchSettings.json` em ambiente de desenvolvimento.
+
+Para validar rapidamente a aplicação após a inicialização, podem ser utilizados:
+
+```text
+http://localhost:5139/swagger
+http://localhost:5139/api/health/live
+http://localhost:5139/api/health/db
+```
 
 ---
 
