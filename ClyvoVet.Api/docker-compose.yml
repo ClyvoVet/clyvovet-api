@@ -6,9 +6,9 @@ networks:
 
 volumes:
   clyvovet_oracle_data:
+  clyvovet_mongo_data:
 
 services:
-
   db-oracle:
     image: gvenzl/oracle-free:latest
     container_name: db-oracle
@@ -30,18 +30,41 @@ services:
       retries: 15
       start_period: 120s
 
+  db-mongo:
+    image: mongo:8.0
+    container_name: db-mongo
+    restart: unless-stopped
+    volumes:
+      - clyvovet_mongo_data:/data/db
+    networks:
+      - clyvo-network
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   clyvo-api:
-    image: clyvovetregistry.azurecr.io/clyvovet-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: clyvovet-api:local
     container_name: clyvo-api
     restart: unless-stopped
     user: app
     depends_on:
       db-oracle:
         condition: service_healthy
+      db-mongo:
+        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:5139
       ConnectionStrings__OracleDbConnection: "Data Source=db-oracle:1521/FREEPDB1;User Id=${ORACLE_APP_USER};Password=${ORACLE_APP_PASSWORD};"
+      ConnectionStrings__Mongodb: "mongodb://db-mongo:27017"
+      Secretkey: "${JWT_SECRET_KEY:NcUilK9lfRfEexW1lAdLtxlEjP9PjL}"
     ports:
       - "5139:5139"
     networks:

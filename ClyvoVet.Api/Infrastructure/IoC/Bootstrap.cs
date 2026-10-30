@@ -4,6 +4,7 @@ using ClyvoVet.API.Domain.Interfaces;
 using ClyvoVet.API.Infrastructure.Data;
 using ClyvoVet.API.Infrastructure.Data.Repositories;
 using ClyvoVet.API.Infrastructure.Observability;
+using ClyvoVet.API.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,27 +18,35 @@ namespace ClyvoVet.API.Infrastructure.IoC
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            var connectionString =
-                configuration.GetConnectionString("OracleDbConnection") ?? string.Empty;
+            var oracleConnection = configuration.GetConnectionString("OracleDbConnection") ?? string.Empty;
+            var mongoConnection = configuration.GetConnectionString("Mongodb") ?? string.Empty;
 
             services.AddDbContext<ApplicationContext>(options =>
             {
                 options.UseOracle(
-                    connectionString,
+                    oracleConnection,
                     oracleOptions => oracleOptions.UseOracleSQLCompatibility(
                         OracleSQLCompatibility.DatabaseVersion21));
+            });
+
+            services.AddDbContext<MongoApplicationContext>(options =>
+            {
+                options.UseMongoDB(mongoConnection, "ClyvoVet");
             });
 
             services.AddTransient<IPetRepository, PetRepository>();
             services.AddTransient<ITutorRepository, TutorRepository>();
             services.AddTransient<IConsultaRepository, ConsultaRepository>();
             services.AddTransient<IMedicacaoRepository, MedicacaoRepository>();
+            services.AddTransient<IHistoricoClinicoRepository, HistoricoClinicoRepository>();
 
             services.AddTransient<IPetUseCase, PetUseCase>();
             services.AddTransient<ITutorUseCase, TutorUseCase>();
             services.AddTransient<IConsultaUseCase, ConsultaUseCase>();
             services.AddTransient<IMedicacaoUseCase, MedicacaoUseCase>();
+            services.AddTransient<IHistoricoClinicoUseCase, HistoricoClinicoUseCase>();
 
+            services.AddSingleton<ITokenService, JwtTokenService>();
             services.AddSingleton<ApiMetrics>();
 
             return services;

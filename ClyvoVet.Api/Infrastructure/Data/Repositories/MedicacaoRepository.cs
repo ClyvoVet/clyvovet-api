@@ -15,31 +15,54 @@ namespace ClyvoVet.API.Infrastructure.Data.Repositories
         public async Task<IEnumerable<Medicacao>> ObterTodosAsync()
         {
             using var activity = ActivitySource.StartActivity("MedicacaoRepository.ObterTodosAsync");
-            return await _applicationContext.Medicacoes
-                .AsNoTracking()
-                .Include(x => x.Pet)
-                .ToListAsync();
+            return await _applicationContext.Medicacoes.AsNoTracking().Include(x => x.Pet).ToListAsync();
+        }
+
+        public async Task<(IEnumerable<Medicacao> data, int rowsCount)> ObterPaginadoAsync(
+            int deslocamento,
+            int registroRetornado,
+            int? idPet,
+            string? nome,
+            string ordenarPor,
+            bool descendente)
+        {
+            using var activity = ActivitySource.StartActivity("MedicacaoRepository.ObterPaginadoAsync");
+            deslocamento = Math.Max(0, deslocamento);
+            registroRetornado = registroRetornado <= 0 ? 10 : Math.Min(registroRetornado, 100);
+
+            var query = _applicationContext.Medicacoes.AsNoTracking().Include(x => x.Pet).AsQueryable();
+            if (idPet.HasValue)
+                query = query.Where(x => x.IdPet == idPet.Value);
+            if (!string.IsNullOrWhiteSpace(nome))
+                query = query.Where(x => x.Nome.ToLower().Contains(nome.ToLower()));
+
+            var total = await query.CountAsync();
+            query = (ordenarPor.ToLowerInvariant(), descendente) switch
+            {
+                ("nome", false) => query.OrderBy(x => x.Nome),
+                ("nome", true) => query.OrderByDescending(x => x.Nome),
+                ("datainicio", false) => query.OrderBy(x => x.DataInicio),
+                ("datainicio", true) => query.OrderByDescending(x => x.DataInicio),
+                ("idmedicacao", true) => query.OrderByDescending(x => x.IdMedicacao),
+                _ => query.OrderBy(x => x.IdMedicacao)
+            };
+
+            var data = await query.Skip(deslocamento).Take(registroRetornado).ToListAsync();
+            return (data, total);
         }
 
         public async Task<Medicacao?> ObterUmAsync(int id)
         {
             using var activity = ActivitySource.StartActivity("MedicacaoRepository.ObterUmAsync");
             activity?.SetTag("medicacao.id", id);
-            return await _applicationContext.Medicacoes
-                .AsNoTracking()
-                .Include(x => x.Pet)
-                .FirstOrDefaultAsync(x => x.IdMedicacao == id);
+            return await _applicationContext.Medicacoes.AsNoTracking().Include(x => x.Pet).FirstOrDefaultAsync(x => x.IdMedicacao == id);
         }
 
         public async Task<IEnumerable<Medicacao>> ObterPorPetAsync(int idPet)
         {
             using var activity = ActivitySource.StartActivity("MedicacaoRepository.ObterPorPetAsync");
             activity?.SetTag("pet.id", idPet);
-            return await _applicationContext.Medicacoes
-                .AsNoTracking()
-                .Include(x => x.Pet)
-                .Where(x => x.IdPet == idPet)
-                .ToListAsync();
+            return await _applicationContext.Medicacoes.AsNoTracking().Include(x => x.Pet).Where(x => x.IdPet == idPet).ToListAsync();
         }
 
         public async Task<Medicacao> AdicionarAsync(Medicacao entity)

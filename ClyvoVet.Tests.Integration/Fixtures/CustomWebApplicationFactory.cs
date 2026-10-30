@@ -1,4 +1,5 @@
 using ClyvoVet.API.Application.Interfaces;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -14,6 +15,7 @@ namespace ClyvoVet.Tests.Integration
         public Mock<ITutorUseCase> TutorUseCaseMock { get; } = new();
         public Mock<IConsultaUseCase> ConsultaUseCaseMock { get; } = new();
         public Mock<IMedicacaoUseCase> MedicacaoUseCaseMock { get; } = new();
+        public Mock<IHistoricoClinicoUseCase> HistoricoClinicoUseCaseMock { get; } = new();
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -22,7 +24,8 @@ namespace ClyvoVet.Tests.Integration
             {
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["Observability:EnableConsoleExporter"] = "false"
+                    ["Observability:EnableConsoleExporter"] = "false",
+                    ["Secretkey"] = "TEST_SECRET_KEY_CLYVOVET_12345678901234567890"
                 });
             });
 
@@ -32,11 +35,19 @@ namespace ClyvoVet.Tests.Integration
                 services.RemoveAll(typeof(ITutorUseCase));
                 services.RemoveAll(typeof(IConsultaUseCase));
                 services.RemoveAll(typeof(IMedicacaoUseCase));
+                services.RemoveAll(typeof(IHistoricoClinicoUseCase));
 
                 services.AddSingleton(PetUseCaseMock.Object);
                 services.AddSingleton(TutorUseCaseMock.Object);
                 services.AddSingleton(ConsultaUseCaseMock.Object);
                 services.AddSingleton(MedicacaoUseCaseMock.Object);
+                services.AddSingleton(HistoricoClinicoUseCaseMock.Object);
+
+                services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = TestAuthHandler.Scheme;
+                    options.DefaultChallengeScheme = TestAuthHandler.Scheme;
+                }).AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.Scheme, _ => { });
             });
         }
     }

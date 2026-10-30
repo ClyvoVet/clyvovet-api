@@ -6,7 +6,9 @@ namespace ClyvoVet.API.Application.Interfaces
     public interface IPetUseCase
     {
         Task<IEnumerable<Pet>> ObterTodosPetsAsync();
+        Task<OperationResult<PageResponseDto<PetResponseDto>>> ObterPetsPaginadosAsync(PetQueryDto query);
         Task<Pet?> ObterUmPetAsync(int id);
+        Task<OperationResult<PetResponseDto?>> ObterPetResponseAsync(int id);
         Task<IEnumerable<Pet>> ObterPetsPorTutorAsync(int idTutor);
         Task<IEnumerable<Pet>> ObterPetsPorEspecieAsync(string especie);
         Task<Pet> AdicionarPetAsync(PetRequestDto model);

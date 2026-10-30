@@ -34,7 +34,8 @@ namespace ClyvoVet.Tests.Integration
         {
             // Arrange
             _factory.PetUseCaseMock.Reset();
-            _factory.PetUseCaseMock.Setup(x => x.ObterTodosPetsAsync()).ReturnsAsync(Array.Empty<Pet>());
+            _factory.PetUseCaseMock.Setup(x => x.ObterPetsPaginadosAsync(It.IsAny<PetQueryDto>()))
+                .ReturnsAsync(OperationResult<PageResponseDto<PetResponseDto>>.Failure("Sem pets", 204));
             using var client = _factory.CreateClient();
 
             // Act
@@ -50,7 +51,8 @@ namespace ClyvoVet.Tests.Integration
         {
             // Arrange
             _factory.PetUseCaseMock.Reset();
-            _factory.PetUseCaseMock.Setup(x => x.ObterUmPetAsync(1)).ReturnsAsync(new Pet { IdPet = 1, IdTutor = 1, Nome = "Thor", Especie = "Cachorro" });
+            _factory.PetUseCaseMock.Setup(x => x.ObterPetResponseAsync(1))
+                .ReturnsAsync(OperationResult<PetResponseDto?>.Success(new PetResponseDto { IdPet = 1, IdTutor = 1, Nome = "Thor", Especie = "Cachorro" }));
             using var client = _factory.CreateClient();
 
             // Act
@@ -66,7 +68,8 @@ namespace ClyvoVet.Tests.Integration
         {
             // Arrange
             _factory.PetUseCaseMock.Reset();
-            _factory.PetUseCaseMock.Setup(x => x.ObterUmPetAsync(999)).ReturnsAsync((Pet?)null);
+            _factory.PetUseCaseMock.Setup(x => x.ObterPetResponseAsync(999))
+                .ReturnsAsync(OperationResult<PetResponseDto?>.Failure("Pet não encontrado.", 404));
             using var client = _factory.CreateClient();
 
             // Act

@@ -1,135 +1,171 @@
-# ClyvoVet - Backend API & Infraestrutura DevOps
+# ClyvoVet - API RESTful .NET 8 | Sprint 4
 
-## 📌 Sobre o Projeto
+## Sobre o projeto
 
-O **ClyvoVet** é uma API RESTful desenvolvida em **C# com .NET 8** para gerenciamento de informações relacionadas a tutores, pets, consultas veterinárias e medicações.
+O **ClyvoVet** é uma API RESTful desenvolvida em **ASP.NET Core 8** para gerenciamento de tutores, pets, consultas veterinárias, medicações e histórico clínico.
 
-A aplicação utiliza **ASP.NET Core Web API**, **Entity Framework Core** e banco de dados **Oracle**, seguindo uma organização em camadas para separar regras de domínio, casos de uso, persistência e apresentação.
+A Sprint 4 consolida as funcionalidades das sprints anteriores e adiciona os requisitos finais da disciplina **Advanced Business Development with .NET**:
 
-Nesta Sprint 3 o projeto foi evoluído principalmente nos seguintes pontos:
-
-- monitoramento da aplicação através de **Health Checks**;
-- logging estruturado com **Serilog**;
-- correlação de requisições com `CorrelationId` e `TraceId`;
-- distributed tracing com **OpenTelemetry**;
-- métricas de desempenho e taxa de erros;
-- documentação dos endpoints com **Swagger Annotations**;
-- testes unitários com **xUnit**, **Moq** e **Entity Framework Core InMemory**;
-- testes de integração com **WebApplicationFactory**;
-- separação dos testes em projetos **Unit** e **Integration**;
-- autenticação de tutores por e-mail e senha;
-- persistência das entidades `TUTOR`, `PET`, `CONSULTA` e `MEDICACAO` no Oracle.
+- Clean Architecture e Injeção de Dependência;
+- tratamento global de exceções;
+- API RESTful documentada com Swagger/OpenAPI;
+- paginação, ordenação e filtros;
+- HATEOAS nos endpoints de consulta;
+- autenticação e autorização via JWT;
+- persistência relacional com Oracle e Entity Framework Core;
+- persistência NoSQL com MongoDB;
+- padrão Repository;
+- Health Checks, Serilog, OpenTelemetry e métricas;
+- testes unitários e de integração com xUnit, Moq e padrão AAA;
+- coleta de cobertura de testes com Coverlet.
 
 ---
 
-## 📑 Índice
+## Índice
 
-- [Sobre o Projeto](#-sobre-o-projeto)
-- [Modelo de Dados](#-modelo-de-dados)
-- [Tecnologias Utilizadas](#-tecnologias-utilizadas)
-- [Arquitetura da Aplicação](#-arquitetura-da-aplicação)
-- [Autenticação de Tutores](#-autenticação-de-tutores)
-- [Endpoints da API](#-endpoints-da-api)
-- [Monitoramento e Observabilidade](#-monitoramento-e-observabilidade)
-  - [Health Checks](#️-health-checks)
-  - [Como monitorar a aplicação](#-como-monitorar-a-aplicação)
-- [Logging Estruturado](#-logging-estruturado)
-  - [Correlação de Requisições](#-correlação-de-requisições)
-- [Distributed Tracing com OpenTelemetry](#-distributed-tracing-com-opentelemetry)
-- [Métricas](#-métricas)
-- [Swagger](#-swagger)
-- [Testes Automatizados](#-testes-automatizados)
-  - [Testes Unitários](#-testes-unitários)
-  - [Testes de Integração](#-testes-de-integração)
-- [Como Executar os Testes](#️-como-executar-os-testes)
-- [Executando a Aplicação Localmente](#-executando-a-aplicação-localmente)
-- [Docker](#-docker)
-- [Infraestrutura de Nuvem](#️-infraestrutura-de-nuvem)
-- [Integrantes do Grupo](#-integrantes-do-grupo)
+1. [Arquitetura](#arquitetura)
+2. [Modelo de dados](#modelo-de-dados)
+3. [Tecnologias](#tecnologias)
+4. [Autenticação e autorização JWT](#autenticação-e-autorização-jwt)
+5. [Paginação, ordenação, filtros e HATEOAS](#paginação-ordenação-filtros-e-hateoas)
+6. [Persistência Oracle](#persistência-oracle)
+7. [Persistência MongoDB](#persistência-mongodb)
+8. [Tratamento global de exceções](#tratamento-global-de-exceções)
+9. [Endpoints](#endpoints)
+10. [Swagger / OpenAPI](#swagger--openapi)
+11. [Monitoramento e observabilidade](#monitoramento-e-observabilidade)
+12. [Testes automatizados](#testes-automatizados)
+13. [Executando a aplicação localmente](#executando-a-aplicação-localmente)
+14. [Docker](#docker)
+15. [Migrations](#migrations)
+16. [Integrantes](#integrantes)
 
+---
 
-## 🐾 Modelo de Dados
+## Arquitetura
 
-O modelo atual da aplicação é composto pelas entidades:
+O projeto está organizado em camadas, mantendo as responsabilidades separadas.
+
+```text
+ClyvoVet.Api/
+├── Presentation/
+│   └── Controllers/
+├── Application/
+│   ├── Dtos/
+│   ├── Helpers/
+│   ├── Interfaces/
+│   ├── Mappers/
+│   └── UseCases/
+├── Domain/
+│   ├── Entities/
+│   ├── Errors/
+│   ├── Interfaces/
+│   └── Models/
+├── Infrastructure/
+│   ├── Data/
+│   │   ├── Migrations/
+│   │   └── Repositories/
+│   ├── Errors/
+│   ├── IoC/
+│   ├── Observability/
+│   └── Security/
+└── Program.cs
+```
+
+### Diagrama da solução
+
+```mermaid
+flowchart TD
+    Client[Cliente / Swagger] --> Presentation[Presentation - Controllers]
+    Presentation --> Application[Application - UseCases / DTOs / Mappers]
+    Application --> Domain[Domain - Entities / Interfaces / Errors]
+
+    Infrastructure[Infrastructure] -. implementa contratos .-> Domain
+    Infrastructure --> Oracle[(Oracle Database)]
+    Infrastructure --> Mongo[(MongoDB)]
+    Infrastructure --> JWT[JWT Security]
+    Infrastructure --> Obs[Serilog / OpenTelemetry / Metrics]
+
+    Application --> Infrastructure
+```
+
+### Responsabilidade de cada camada
+
+- **Presentation:** expõe os endpoints HTTP e traduz o resultado da aplicação em respostas HTTP.
+- **Application:** contém os casos de uso, DTOs, mapeamentos, paginação e construção de HATEOAS.
+- **Domain:** contém entidades, contratos de repositories, `OperationResult<T>` e erros do domínio.
+- **Infrastructure:** implementa persistência Oracle/MongoDB, segurança JWT, observabilidade e DI.
+
+A configuração das dependências fica centralizada em:
+
+```text
+ClyvoVet.Api/Infrastructure/IoC/Bootstrap.cs
+```
+
+---
+
+## Modelo de dados
+
+### Oracle - modelo relacional
 
 ```text
 TUTOR
-  ├── autenticação por EMAIL + SENHA
   └── 1:N PET
           ├── 1:N CONSULTA
           └── 1:N MEDICACAO
 ```
 
-### Tutor
+Tabelas relacionais:
 
-Representa o responsável pelos pets cadastrados na aplicação.
+- `TUTOR`
+- `PET`
+- `CONSULTA`
+- `MEDICACAO`
 
-Principais campos:
+A entidade `Tutor` continua sendo a identidade utilizada para cadastro e login. Não existe uma tabela separada `User` no modelo atual.
 
-- `IdTutor`
-- `Nome`
-- `Email`
-- `Telefone`
-- `Cpf`
-- `Senha`
+### MongoDB - modelo NoSQL
 
-A autenticação é realizada diretamente pela entidade `Tutor`. A entidade `User` não faz mais parte do modelo atual.
+O MongoDB é utilizado para documentos de **histórico clínico**:
 
-A propriedade de senha possui `JsonIgnore`, portanto a senha não é devolvida nas respostas JSON da API.
+```text
+historico_clinico
+├── Id (ObjectId)
+├── IdPet
+├── DataRegistro
+├── Tipo
+├── Descricao
+└── Tags[]
+```
 
-### Pet
-
-Cada pet pertence a um tutor.
-
-Principais campos:
-
-- `IdPet`
-- `IdTutor`
-- `Nome`
-- `Especie`
-- `Raca`
-- `DataNascimento`
-- `PesoKg`
-
-### Consulta
-
-Representa uma consulta veterinária associada a um pet.
-
-Principais campos:
-
-- `IdConsulta`
-- `IdPet`
-- `DataConsulta`
-- `Veterinario`
-- `Observacoes`
-
-### Medicação
-
-Representa uma medicação associada a um pet.
-
-Principais campos:
-
-- `IdMedicacao`
-- `IdPet`
-- `Nome`
-- `Dose`
-- `Frequencia`
-- `DataInicio`
-- `DataFim`
+O histórico clínico foi mantido em NoSQL para demonstrar armazenamento de documentos flexíveis sem alterar o modelo relacional principal.
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## Tecnologias
 
 ### Backend
 
 - C#
 - .NET 8
 - ASP.NET Core Web API
-- Entity Framework Core
-- Oracle.EntityFrameworkCore
+- Entity Framework Core 8
 
-### Monitoramento e Observabilidade
+### Persistência
+
+- Oracle Database
+- Oracle.EntityFrameworkCore
+- MongoDB
+- MongoDB.EntityFrameworkCore
+- MongoDB.Bson
+
+### Segurança
+
+- Microsoft.AspNetCore.Authentication.JwtBearer
+- JWT Bearer Token
+- `[Authorize]` e `[AllowAnonymous]`
+
+### Observabilidade
 
 - Microsoft Health Checks
 - AspNetCore.HealthChecks.Oracle
@@ -140,92 +176,24 @@ Principais campos:
 ### Documentação
 
 - Swagger / OpenAPI
-- Swashbuckle.AspNetCore.Annotations
+- Swashbuckle.AspNetCore
+- Swagger Annotations
 
 ### Testes
 
 - xUnit
 - Moq
-- Entity Framework Core InMemory
-- Microsoft.AspNetCore.Mvc.Testing
 - WebApplicationFactory
-
-
-### Infraestrutura
-
-- Docker
-- Oracle Database
-- Microsoft Azure
-- Azure Container Registry (ACR)
-- Azure Container Instances (ACI)
-- GitHub Actions
+- EF Core InMemory
+- Coverlet Collector
 
 ---
 
-## 🏗️ Arquitetura da Aplicação
+## Autenticação e autorização JWT
 
-A API está organizada nas seguintes camadas:
+A Sprint 4 substitui o retorno simples do login por um **JWT**.
 
-```text
-ClyvoVet.Api/
-├── Application/
-│   ├── Dtos/
-│   ├── Interfaces/
-│   ├── Mappers/
-│   └── UseCases/
-│
-├── Domain/
-│   ├── Entities/
-│   └── Interfaces/
-│
-├── Infrastructure/
-│   ├── Data/
-│   │   ├── Migrations/
-│   │   └── Repositories/
-│   ├── HealthChecks/
-│   ├── IoC/
-│   │   └── Bootstrap.cs
-│   └── Observability/
-│
-├── Presentation/
-│   └── Controllers/
-│
-└── Program.cs
-```
-
-### Responsabilidade das camadas
-
-- **Presentation:** recebe requisições HTTP, chama os casos de uso e produz as respostas da API.
-- **Application:** contém DTOs, mapeamentos, interfaces e UseCases responsáveis pelo fluxo das operações.
-- **Domain:** contém as entidades e contratos dos repositories.
-- **Infrastructure:** contém acesso ao Oracle, repositories, migrations, Health Checks, métricas e registro de dependências.
-
-### IoC / Bootstrap
-
-A pasta `Infrastructure/IoC` contém o `Bootstrap.cs`, utilizado para centralizar o registro das dependências da aplicação.
-
-O `Program.cs` chama:
-
-```csharp
-builder.Services.AddClyvoVetInfrastructure(builder.Configuration);
-```
-
-O `Bootstrap.cs` registra:
-
-- `ApplicationContext`;
-- repositories de Tutor, Pet, Consulta e Medicação;
-- UseCases correspondentes;
-- serviço `ApiMetrics`.
-
-Essa organização evita concentrar todos os registros de dependência diretamente no `Program.cs`.
-
----
-
-# 🔐 Autenticação de Tutores
-
-A aplicação utiliza o próprio cadastro de `Tutor` para validação de credenciais.
-
-## Cadastro
+### Cadastro público
 
 ```http
 POST /api/tutors
@@ -244,13 +212,11 @@ Exemplo:
 }
 ```
 
-## Login
+### Login público
 
 ```http
 POST /api/tutors/login
 ```
-
-Exemplo:
 
 ```json
 {
@@ -259,549 +225,520 @@ Exemplo:
 }
 ```
 
-O fluxo de login é:
+Resposta:
 
-```text
-TutorsController
-      ↓
-TutorUseCase
-      ↓
-TutorRepository
-      ↓
-Oracle - TUTOR
+```json
+{
+  "email": "tutor@teste.com",
+  "jwt": "eyJhbGciOiJIUzI1NiIs...",
+  "expiresAtUtc": "2026-10-23T04:00:00Z"
+}
 ```
 
-Respostas principais:
+O token possui claims de:
 
-- `200 OK`: credenciais válidas;
-- `401 Unauthorized`: e-mail ou senha incorretos;
-- `400 Bad Request`: dados inválidos ou erro durante a operação;
+- identificador do tutor;
+- e-mail;
+- nome de autenticação;
+- role `tutor`;
+- expiração.
 
----
+Os endpoints de negócio utilizam `[Authorize(Roles = "tutor")]`, demonstrando autorização baseada em role. Cadastro e login utilizam `[AllowAnonymous]`.
 
-# 📚 Endpoints da API
+### Configuração JWT
 
-## Tutores
+Em `appsettings.Development.json`:
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| POST | `/api/tutors` | Cadastra um tutor |
-| POST | `/api/tutors/login` | Valida as credenciais do tutor |
-| GET | `/api/tutors` | Lista os tutores cadastrados |
-| GET | `/api/tutors/{id}` | Busca um tutor por ID |
-| PUT | `/api/tutors/{id}` | Atualiza um tutor |
-| DELETE | `/api/tutors/{id}` | Exclui um tutor |
+```json
+"Secretkey": "ClyvoVet_Sprint4_FIAP_2026_Chave_JWT_Segura_123456"
+```
 
-## Pets
+A chave é lida diretamente por `builder.Configuration["Secretkey"]`, seguindo o padrão utilizado em aula. A validade do token é de 8 horas e fica definida no código. Para ambientes compartilhados ou produção, substitua a chave por uma chave segura e preferencialmente configure-a por variável de ambiente:
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| POST | `/api/pets` | Cadastra um pet |
-| GET | `/api/pets` | Lista todos os pets |
-| GET | `/api/pets/{id}` | Busca um pet por ID |
-| GET | `/api/pets/tutor/{idTutor}` | Lista os pets filtrados por tutor |
-| GET | `/api/pets/especie/{especie}` | Lista os pets filtrados por espécie |
-| PUT | `/api/pets/{id}` | Atualiza um pet |
-| DELETE | `/api/pets/{id}` | Exclui um pet |
-
-## Consultas
-
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| POST | `/api/consultas` | Cadastra uma consulta |
-| GET | `/api/consultas` | Lista todas as consultas |
-| GET | `/api/consultas/{id}` | Busca uma consulta por ID |
-| GET | `/api/consultas/pet/{idPet}` | Lista as consultas de um pet |
-| PUT | `/api/consultas/{id}` | Atualiza uma consulta |
-| DELETE | `/api/consultas/{id}` | Exclui uma consulta |
-
-
-## Medicações
-
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| POST | `/api/medicacoes` | Cadastra uma medicação |
-| GET | `/api/medicacoes` | Lista todas as medicações |
-| GET | `/api/medicacoes/{id}` | Busca uma medicação por ID |
-| GET | `/api/medicacoes/pet/{idPet}` | Lista as medicações de um pet |
-| PUT | `/api/medicacoes/{id}` | Atualiza uma medicação |
-| DELETE | `/api/medicacoes/{id}` | Exclui uma medicação |
+```text
+Secretkey
+```
 
 ---
 
-# 📊 Monitoramento e Observabilidade
+## Paginação, ordenação, filtros e HATEOAS
 
-## ❤️ Health Checks
+Os principais endpoints `GET` de coleção utilizam paginação por deslocamento.
 
-A aplicação utiliza `Microsoft.Extensions.Diagnostics.HealthChecks` para verificar a disponibilidade da própria API e a conectividade com o banco Oracle. Os Health Checks são expostos exclusivamente pelo `HealthController`, evitando endpoints duplicados no `Program.cs`.
+Parâmetros comuns:
 
-### Liveness da API
+| Parâmetro | Descrição | Padrão |
+|---|---|---:|
+| `deslocamento` | quantidade de registros ignorados | `0` |
+| `registroRetornado` | quantidade máxima de registros | `10` |
+| `ordenarPor` | propriedade utilizada na ordenação | ID do recurso |
+| `direcao` | `asc` ou `desc` | `asc` |
+
+Exemplo:
+
+```http
+GET /api/pets?deslocamento=0&registroRetornado=10&especie=Cachorro&ordenarPor=nome&direcao=asc
+Authorization: Bearer {token}
+```
+
+Resposta paginada:
+
+```json
+{
+  "items": [
+    {
+      "idPet": 1,
+      "idTutor": 1,
+      "nome": "Thor",
+      "especie": "Cachorro",
+      "links": [
+        { "href": "/api/pets/1", "rel": "self", "method": "GET" },
+        { "href": "/api/pets/1", "rel": "update", "method": "PUT" },
+        { "href": "/api/pets/1", "rel": "delete", "method": "DELETE" }
+      ]
+    }
+  ],
+  "deslocamento": 0,
+  "registroRetornado": 10,
+  "totalRegistros": 1,
+  "links": [
+    { "href": "/api/pets?...", "rel": "self", "method": "GET" },
+    { "href": "/api/pets", "rel": "create", "method": "POST" }
+  ]
+}
+```
+
+### Filtros disponíveis
+
+**Tutores**
+
+- `nome`
+- `email`
+
+**Pets**
+
+- `nome`
+- `especie`
+- `idTutor`
+
+**Consultas**
+
+- `idPet`
+- `veterinario`
+- `dataInicio`
+- `dataFim`
+
+**Medicações**
+
+- `idPet`
+- `nome`
+
+**Histórico clínico (MongoDB)**
+
+- `idPet`
+- `tipo`
+
+---
+
+## Persistência Oracle
+
+O `ApplicationContext` utiliza Entity Framework Core com Oracle.
+
+Repositories concretos:
+
+```text
+TutorRepository
+PetRepository
+ConsultaRepository
+MedicacaoRepository
+```
+
+O padrão Repository mantém o acesso a dados fora dos Controllers e UseCases.
+
+A migration atual é uma `InitialCreate` limpa contendo somente as tabelas atuais do projeto.
+
+---
+
+## Persistência MongoDB
+
+O contexto NoSQL está em:
+
+```text
+Infrastructure/Data/MongoApplicationContext.cs
+```
+
+Repository:
+
+```text
+HistoricoClinicoRepository
+```
+
+Caso de uso:
+
+```text
+HistoricoClinicoUseCase
+```
+
+Controller:
+
+```text
+HistoricosClinicosController
+```
+
+Configuração padrão:
+
+```json
+"ConnectionStrings": {
+  "Mongodb": "mongodb://localhost:27017"
+}
+```
+
+O nome do banco MongoDB é definido no `Bootstrap.cs` como `ClyvoVet`, seguindo o padrão utilizado no projeto de exemplo da disciplina.
+
+A coleção é criada/utilizada pelo MongoDB quando os documentos são persistidos.
+
+---
+
+## Tratamento global de exceções
+
+A API utiliza um `IExceptionHandler` global:
+
+```text
+Infrastructure/Errors/GlobalExceptionHandler.cs
+```
+
+O tratamento centralizado padroniza erros inesperados e devolve respostas no formato `ProblemDetails`.
+
+Mapeamentos principais:
+
+| Exceção | HTTP |
+|---|---:|
+| recurso não encontrado | `404` |
+| argumento/formato inválido | `400` |
+| conflito de persistência EF Core | `409` |
+| erro não tratado | `500` |
+
+As Controllers não precisam repetir blocos `try/catch` genéricos em todos os métodos.
+
+Além disso, a camada Application utiliza `OperationResult<T>` para padronizar fluxos esperados de sucesso e falha.
+
+---
+
+## Endpoints
+
+> Endpoints protegidos exigem `Authorization: Bearer {token}`.
+
+### Tutores
+
+| Método | Endpoint | Autorização | Função |
+|---|---|---|---|
+| POST | `/api/tutors` | público | cadastrar tutor |
+| POST | `/api/tutors/login` | público | autenticar e gerar JWT |
+| GET | `/api/tutors` | JWT | paginação, filtros e HATEOAS |
+| GET | `/api/tutors/{id}` | JWT | consultar tutor |
+| PUT | `/api/tutors/{id}` | JWT | atualizar tutor |
+| DELETE | `/api/tutors/{id}` | JWT | excluir tutor |
+
+### Pets
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/api/pets` | paginação, ordenação, filtros e HATEOAS |
+| GET | `/api/pets/{id}` | obter pet |
+| GET | `/api/pets/tutor/{idTutor}` | filtrar por tutor |
+| GET | `/api/pets/especie/{especie}` | filtrar por espécie |
+| POST | `/api/pets` | cadastrar |
+| PUT | `/api/pets/{id}` | atualizar |
+| DELETE | `/api/pets/{id}` | excluir |
+
+### Consultas
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/api/consultas` | paginação, ordenação, filtros e HATEOAS |
+| GET | `/api/consultas/{id}` | obter consulta |
+| GET | `/api/consultas/pet/{idPet}` | consultar por pet |
+| POST | `/api/consultas` | cadastrar |
+| PUT | `/api/consultas/{id}` | atualizar |
+| DELETE | `/api/consultas/{id}` | excluir |
+
+### Medicações
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/api/medicacoes` | paginação, ordenação, filtros e HATEOAS |
+| GET | `/api/medicacoes/{id}` | obter medicação |
+| GET | `/api/medicacoes/pet/{idPet}` | consultar por pet |
+| POST | `/api/medicacoes` | cadastrar |
+| PUT | `/api/medicacoes/{id}` | atualizar |
+| DELETE | `/api/medicacoes/{id}` | excluir |
+
+### Histórico clínico - MongoDB
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/api/historicos-clinicos` | paginação, filtros e HATEOAS |
+| GET | `/api/historicos-clinicos/{id}` | obter documento MongoDB |
+| POST | `/api/historicos-clinicos` | cadastrar documento |
+| PUT | `/api/historicos-clinicos/{id}` | atualizar documento |
+| DELETE | `/api/historicos-clinicos/{id}` | excluir documento |
+
+### Monitoramento
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/api/health/live` | liveness da API |
+| GET | `/api/health/db` | conectividade Oracle |
+| GET | `/metrics` | métricas consolidadas |
+
+---
+
+## Swagger / OpenAPI
+
+Com a aplicação em execução:
+
+```text
+http://localhost:5139/swagger
+```
+
+O Swagger possui esquema **Bearer JWT**.
+
+Fluxo recomendado:
+
+1. execute `POST /api/tutors` para cadastrar um tutor;
+2. execute `POST /api/tutors/login`;
+3. copie o valor `jwt`;
+4. clique em **Authorize** no Swagger;
+5. informe `Bearer {token}`;
+6. teste os endpoints protegidos.
+
+---
+
+## Monitoramento e observabilidade
+
+### Health Checks
 
 ```http
 GET /api/health/live
-```
-
-Executa somente o Health Check registrado com a tag `live` e verifica se a API está em execução sem depender da conexão com o banco.
-
-Quando saudável:
-
-```text
-HTTP 200 OK
-```
-
-### Banco Oracle
-
-```http
 GET /api/health/db
 ```
 
-Executa somente o Health Check registrado com a tag `db` e verifica se a aplicação consegue se conectar ao Oracle.
+`live` verifica o processo da API e `db` verifica a conexão Oracle.
 
-Resultados esperados:
+### Logging estruturado
 
-```text
-Oracle disponível   → HTTP 200 OK
-Oracle indisponível → HTTP 503 Service Unavailable
-```
-
-Os endpoints utilizam `HealthCheckService`, retornam informações estruturadas sobre as verificações e são documentados no Swagger.
-
-> A versão atual do ClyvoVet não integra uma dependência HTTP externa; por isso não existe Health Check de serviço externo nesta implementação.
-
----
-
-## 🔎 Como monitorar a aplicação
-
-Com a API em execução localmente:
-
-### HTTP
-
-```text
-http://localhost:5139/api/health/live
-http://localhost:5139/api/health/db
-http://localhost:5139/metrics
-```
-
-### HTTPS
-
-```text
-https://localhost:7011/api/health/live
-https://localhost:7011/api/health/db
-https://localhost:7011/metrics
-```
-
-Uma forma de validar o monitoramento do banco é:
-
-1. iniciar a API com o Oracle disponível;
-2. consultar `/api/health/live` e `/api/health/db`;
-3. interromper temporariamente o Oracle;
-4. consultar novamente os endpoints.
-
-O comportamento esperado é:
-
-```text
-/api/health/live → continua respondendo 200
-/api/health/db   → responde 503 enquanto o Oracle estiver indisponível
-```
-
----
-
-# 📝 Logging Estruturado
-
-A aplicação utiliza **Serilog**.
-
-Os níveis utilizados incluem:
-
-- `Information` para operações normais;
-- `Warning` para situações que exigem atenção;
-- `Error` para falhas e exceções.
-
-Os logs são enviados para:
+Serilog registra em:
 
 - console;
-- arquivos com rotação diária no diretório `logs` da aplicação.
+- `logs/api-AAAA-MM-DD.log`;
+- níveis Information, Warning e Error;
+- `CorrelationId`;
+- `TraceId`.
 
-O padrão de arquivo é semelhante a:
+### OpenTelemetry
 
-```text
-logs/api-AAAAMMdd.log
-```
-
-
----
-
-## 🔗 Correlação de Requisições
-
-Cada requisição recebe um identificador através do header:
-
-```http
-X-Correlation-ID
-```
-
-Caso o cliente não envie esse header, a aplicação gera um novo identificador.
-
-O valor é incluído na resposta e também é registrado pelo Serilog juntamente com o `TraceId`.
-
-Fluxo:
-
-```text
-Requisição HTTP
-      ↓
-CorrelationId / TraceId
-      ↓
-Controller
-      ↓
-UseCase
-      ↓
-Repository
-      ↓
-Logs e traces relacionados
-```
-
-O request logging do Serilog utiliza os níveis:
-
-```text
-2xx / 3xx → Information
-4xx       → Warning
-5xx       → Error
-```
-
----
-
-# 🔭 Distributed Tracing com OpenTelemetry
-
-O projeto utiliza **OpenTelemetry** para rastrear o fluxo das requisições.
-
-Instrumentações configuradas:
+Tracing configurado para:
 
 - ASP.NET Core;
 - HttpClient;
 - `ClyvoVet.Application`;
 - `ClyvoVet.Infrastructure`.
 
-Fluxo conceitual:
+### Métricas
 
-```text
-ASP.NET Core
-      ↓
-Controller
-      ↓
-Application / UseCase
-      ↓
-Infrastructure / Repository
-      ↓
-Oracle
-```
+O middleware mede:
 
-Os UseCases e repositories utilizam `ActivitySource`, permitindo acompanhar a execução entre as camadas.
-
-O exportador de console pode ser controlado pela configuração:
-
-```json
-{
-  "Observability": {
-    "EnableConsoleExporter": true
-  }
-}
-```
-
----
-
-# 📈 Métricas
-
-A classe `ApiMetrics` registra métricas da API através de `System.Diagnostics.Metrics` e OpenTelemetry.
-
-São coletados:
-
-- total de requisições;
-- total de erros HTTP;
+- quantidade total de requisições;
+- quantidade total de erros;
 - taxa de erros;
-- tempo médio de resposta;
-- histograma de tempo de resposta.
+- tempo médio de resposta.
 
-As métricas resumidas podem ser consultadas por:
+Endpoint:
 
 ```http
 GET /metrics
 ```
 
-Exemplo de estrutura retornada:
-
-```json
-{
-  "totalRequests": 10,
-  "totalErrors": 1,
-  "errorRatePercent": 10.0,
-  "averageResponseTimeMs": 25.3
-}
-```
-
 ---
 
-# 📚 Swagger
+## Testes automatizados
 
-A documentação interativa está disponível em ambiente de desenvolvimento.
-
-### HTTPS
-
-```text
-https://localhost:7011/swagger
-```
-
-### HTTP
-
-```text
-http://localhost:5139/swagger
-```
-
-Os controllers utilizam `SwaggerOperation` e `SwaggerResponse`.
-
-As descrições incluem, conforme aplicável:
-
-- breve descrição do endpoint;
-- dados utilizados;
-- fluxo de processamento;
-- observações importantes;
-- códigos de resposta HTTP.
-
----
-
-# 🧪 Testes Automatizados
-
-Os testes foram separados em dois projetos independentes:
-
-```text
-ClyvoVet.Tests.Unit
-ClyvoVet.Tests.Integration
-```
-
-A versão atual possui:
-
-```text
-28 testes Unit
-17 testes Integration
-45 testes no total
-```
-
-Todos os testes seguem explicitamente o padrão **AAA**:
-
-```text
-Arrange
-Act
-Assert
-```
-
-A nomenclatura segue o padrão:
-
-```text
-MetodoTestado_Cenario_ResultadoEsperado
-```
-
----
-
-## ✅ Testes Unitários
-
-Estrutura:
+Os testes são separados em:
 
 ```text
 ClyvoVet.Tests.Unit/
-├── Domain/
-│   └── EntityTest.cs
-│
-├── Application/
-│   ├── TutorUseCaseTest.cs
-│   ├── PetUseCaseTest.cs
-│   ├── ConsultaUseCaseTest.cs
-│   └── MedicacaoUseCaseTest.cs
-│
-└── Infrastructure/
-    ├── TutorRepositoryTest.cs
-    ├── PetRepositoryTest.cs
-    ├── ConsultaRepositoryTest.cs
-    └── MedicacaoRepositoryTest.cs
-```
-
-Nos testes de Application, as dependências são isoladas com **Moq**.
-
-Nos testes de Repository é utilizado **Entity Framework Core InMemory**, permitindo testar a persistência sem acessar o Oracle real.
-
----
-
-## 🔄 Testes de Integração
-
-Estrutura:
-
-```text
 ClyvoVet.Tests.Integration/
-├── Controllers/
-│   ├── TutorControllerTest.cs
-│   ├── PetControllerTest.cs
-│   ├── ConsultaControllerTest.cs
-│   └── MedicacaoControllerTest.cs
-│
-├── Fixtures/
-│   └── CustomWebApplicationFactory.cs
-│
-└── HealthChecks/
-    └── HealthCheckTest.cs
 ```
 
-Os testes utilizam:
+São utilizados:
 
-```text
-WebApplicationFactory<Program>
+- xUnit;
+- Moq;
+- padrão AAA (`Arrange`, `Act`, `Assert`);
+- WebApplicationFactory;
+- Fixtures e Collection Fixtures;
+- EF Core InMemory;
+- autenticação de teste para endpoints protegidos;
+- testes específicos da Sprint 4 para JWT, HATEOAS e MongoDB/Application.
+
+### Executar todos os testes
+
+Na raiz:
+
+```powershell
+dotnet test .\ClyvoVet.Tests.Unit\ClyvoVet.Tests.Unit.csproj
+dotnet test .\ClyvoVet.Tests.Integration\ClyvoVet.Tests.Integration.csproj
 ```
 
-para subir a API em memória e realizar requisições HTTP.
+### Cobertura
 
-São cobertos cenários como:
+O projeto mantém `coverlet.collector` para coleta de cobertura:
 
-- cadastro com sucesso;
-- consulta de registros;
-- recursos inexistentes;
-- respostas `200`, `201`, `204`, `400`, `401` e `404`;
-- login com credenciais válidas;
-- login com credenciais inválidas;
-- Health Checks.
+```powershell
+dotnet test .\ClyvoVet.Tests.Unit\ClyvoVet.Tests.Unit.csproj --collect:"XPlat Code Coverage"
+dotnet test .\ClyvoVet.Tests.Integration\ClyvoVet.Tests.Integration.csproj --collect:"XPlat Code Coverage"
+```
 
-A suíte utiliza tanto `IClassFixture` quanto `ICollectionFixture` para compartilhar o contexto da aplicação entre os testes.
+Os resultados são gerados dentro de `TestResults`.
 
 ---
 
-# ▶️ Como Executar os Testes
+## Executando a aplicação localmente
 
-A partir da pasta raiz do repositório, os testes podem ser executados com `dotnet test`.
+### 1. Pré-requisitos
 
-## Testes Unitários
+Instale:
 
-```bash
-dotnet test ./ClyvoVet.Tests.Unit/ClyvoVet.Tests.Unit.csproj
-```
+- .NET SDK 8;
+- Oracle Database acessível;
+- MongoDB acessível (local, Docker ou Atlas);
+- `dotnet-ef` caso precise manipular migrations.
 
-## Testes de Integração
+### 2. Configurar credenciais Oracle
 
-```bash
-dotnet test ./ClyvoVet.Tests.Integration/ClyvoVet.Tests.Integration.csproj
-```
-
-
-Os testes também podem ser executados através do **Test Explorer** do Visual Studio.
-
----
-
-# 💻 Executando a Aplicação Localmente
-
-## Pré-requisitos
-
-Antes de iniciar a API, certifique-se de possuir:
-
-- **.NET 8 SDK** instalado;
-- **Visual Studio 2022** ou outra IDE compatível com .NET 8;
-- acesso a uma instância do **Oracle Database**;
-- usuário e senha válidos para o schema Oracle que será utilizado pela aplicação;
-- **Docker Desktop** somente se optar por executar o Oracle em container.
-
-## Configuração das credenciais do Oracle
-
-A connection string utilizada no ambiente de desenvolvimento fica no arquivo:
+Edite:
 
 ```text
 ClyvoVet.Api/appsettings.Development.json
 ```
 
-O projeto é entregue com a estrutura da connection string já configurada, porém **sem usuário e senha do banco**. Os campos `User Id` e `Password` devem ser preenchidos com as credenciais do Oracle de quem estiver executando a aplicação.
-
-Exemplo:
+A entrega deixa a estrutura da connection string pronta, porém **sem credenciais Oracle**:
 
 ```json
-{
-  "ConnectionStrings": {
-    "OracleDbConnection": "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=oracle.fiap.com.br)(PORT=1521))) (CONNECT_DATA=(SERVER=DEDICATED)(SID=ORCL)));User Id=SEU_USUARIO;Password=SUA_SENHA;"
-  }
-}
+"OracleDbConnection": "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=oracle.fiap.com.br)(PORT=1521))) (CONNECT_DATA=(SERVER=DEDICATED)(SID=ORCL)));User Id=;Password=;"
 ```
 
-
-
-Antes de executar o projeto, substitua os campos vazios pelas suas próprias credenciais.
-
-
-
-## Executando pelo terminal
-
-Na pasta raiz do repositório, execute:
-
-```bash
-dotnet restore
-dotnet run --project ./ClyvoVet.Api/ClyvoVet.Api.csproj
-```
-
-O `launchSettings.json` configura o ambiente como `Development`, fazendo com que o ASP.NET Core carregue também o `appsettings.Development.json`.
-
-Durante a inicialização, a aplicação executa as migrations do Entity Framework Core automaticamente. Por isso, o usuário Oracle informado deve possuir as permissões necessárias no schema utilizado pela aplicação.
-
-## Executando pelo Visual Studio
-
-1. Abra a solução do projeto no Visual Studio;
-
-2. confirme que as credenciais do Oracle foram preenchidas em `appsettings.Development.json`;
-3. execute utilizando `F5` ou o botão de execução da IDE.
-
-Os perfis atuais utilizam:
+Preencha `User Id` e `Password` com as credenciais do banco que será utilizado:
 
 ```text
-HTTP  → http://localhost:5139
-HTTPS → https://localhost:7011
+User Id=SEU_USUARIO;Password=SUA_SENHA;
 ```
 
-O Swagger é aberto automaticamente pelo `launchSettings.json` em ambiente de desenvolvimento.
+Recomenda-se utilizar um usuário/schema Oracle exclusivo ou vazio para o ClyvoVet, evitando conflito com tabelas preexistentes que não estejam registradas no `__EFMigrationsHistory`.
 
-Para validar rapidamente a aplicação após a inicialização, podem ser utilizados:
+### 3. Configurar MongoDB
+
+O padrão local é:
+
+```json
+"Mongodb": "mongodb://localhost:27017"
+```
+
+Se utilizar MongoDB Atlas ou outro servidor, substitua pela connection string correspondente.
+
+### 4. Configurar a chave JWT
+
+Para uso acadêmico local há uma chave de desenvolvimento configurada. Para outro ambiente, substitua:
+
+```json
+"Secretkey": "SUA_CHAVE_SEGURA"
+```
+
+ou utilize a variável de ambiente:
 
 ```text
-http://localhost:5139/swagger
-http://localhost:5139/api/health/live
-http://localhost:5139/api/health/db
+Secretkey
+```
+
+### 5. Restaurar dependências
+
+Na raiz do repositório:
+
+```powershell
+dotnet restore .\ClyvoVet.Api\ClyvoVet.Api.csproj
+```
+
+### 6. Executar
+
+```powershell
+dotnet run --project .\ClyvoVet.Api\ClyvoVet.Api.csproj
+```
+
+A aplicação aplica as migrations Oracle pendentes durante a inicialização, exceto no ambiente `Testing`.
+
+### 7. Validar
+
+```text
+Swagger:       http://localhost:5139/swagger
+Health API:    http://localhost:5139/api/health/live
+Health Oracle: http://localhost:5139/api/health/db
+Metrics:       http://localhost:5139/metrics
 ```
 
 ---
 
-# 🐳 Docker
+## Docker
 
-O projeto possui `docker-compose.yml` com:
+O `docker-compose.yml` contém:
 
-- container Oracle;
-- container da API;
-- rede dedicada;
-- volume persistente do Oracle;
+- Oracle;
+- MongoDB;
+- API ClyvoVet.
 
-
-As credenciais do banco devem ser fornecidas por variáveis de ambiente, como:
+Variáveis esperadas:
 
 ```text
 ORACLE_ROOT_PASSWORD
 ORACLE_APP_USER
 ORACLE_APP_PASSWORD
+JWT_SECRET_KEY
+```
+
+Depois:
+
+```bash
+docker compose up -d
 ```
 
 ---
 
-# 🏗️ Infraestrutura de Nuvem
+## Migrations
 
-A estrutura de DevOps do projeto contempla:
+A pasta:
 
-- Microsoft Azure;
-- Azure Container Registry (ACR);
-- Azure Container Instances (ACI);
-- Docker;
-- GitHub Actions;
-- deploy da imagem da API em container.
+```text
+ClyvoVet.Api/Infrastructure/Data/Migrations
+```
 
-O provisionamento da infraestrutura ACI é realizado pelo script `scripts/deploy-aci.sh`, que cria o container group com a API .NET 8 e o Oracle DB em rede local compartilhada. O repositório possui workflows separados para CI e deploy. A execução local dos testes continua disponível pelos comandos `dotnet test` documentados acima.
+contém a migration relacional do Oracle.
+
+Para gerar uma nova migration:
+
+```powershell
+dotnet ef migrations add NomeDaMigration --project .\ClyvoVet.Api\ClyvoVet.Api.csproj --startup-project .\ClyvoVet.Api\ClyvoVet.Api.csproj --context ApplicationContext --output-dir Infrastructure\Data\Migrations
+```
+
+Para gerar o script SQL:
+
+```powershell
+dotnet ef migrations script --project .\ClyvoVet.Api\ClyvoVet.Api.csproj --startup-project .\ClyvoVet.Api\ClyvoVet.Api.csproj --context ApplicationContext --output script_bd.sql
+```
+
+As migrations EF Core se aplicam ao banco **relacional Oracle**. O MongoDB não utiliza as migrations relacionais do EF Core.
 
 ---
 
-## 👥 Integrantes do Grupo
+## Integrantes
 
 - **Enzo Monteiro Maciel** - RM: 563734
 - **Matheus de Almeida Sousa** - RM: 563557

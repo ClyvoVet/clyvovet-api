@@ -1,11 +1,16 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Text;
 using ClyvoVet.API.Infrastructure.Data;
+using ClyvoVet.API.Infrastructure.Errors;
 using ClyvoVet.API.Infrastructure.IoC;
 using ClyvoVet.API.Infrastructure.Observability;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -33,18 +38,66 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Services.AddSerilog();
-
 Log.Information("Logging estruturado inicializado. Arquivos de log em {LogDirectory}", logDirectory);
 
 builder.Services.AddClyvoVetInfrastructure(builder.Configuration);
-
 builder.Services.AddControllers();
-builder.Services.AddAuthorization();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddEndpointsApiExplorer();
+
+var jwtSecret = builder.Configuration["Secretkey"];
+if (string.IsNullOrWhiteSpace(jwtSecret))
+    throw new InvalidOperationException("A configuração Secretkey é obrigatória.");
+
+var jwtKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(jwtSecret));
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = false;
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = jwtKey,
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.EnableAnnotations();
     c.ExampleFilters();
+
+    var securitySchema = new OpenApiSecurityScheme
+    {
+        Description = "Informe o JWT no formato: Bearer {token}",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Reference = new OpenApiReference
+        {
+            Type = ReferenceType.SecurityScheme,
+            Id = "Bearer"
+        }
+    };
+
+    c.AddSecurityDefinition("Bearer", securitySchema);
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        { securitySchema, Array.Empty<string>() }
+    });
 });
 builder.Services.AddSwaggerExamplesFromAssemblyOf<Program>();
 
@@ -53,16 +106,8 @@ builder.Services.AddResponseCompression(options =>
     options.Providers.Add<BrotliCompressionProvider>();
     options.Providers.Add<GzipCompressionProvider>();
 });
-
-builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
-{
-    options.Level = CompressionLevel.Fastest;
-});
-
-builder.Services.Configure<GzipCompressionProviderOptions>(options =>
-{
-    options.Level = CompressionLevel.Fastest;
-});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(options => options.Level = CompressionLevel.Fastest);
 
 builder.Services.AddHealthChecks()
     .AddCheck(
@@ -162,11 +207,13 @@ app.Use(async (context, next) =>
     }
 });
 
+app.UseExceptionHandler();
+
+app.UseAuthentication();
 app.UseAuthorization();
 app.UseResponseCompression();
 
-app.MapGet("/metrics", (ApiMetrics metrics) => Results.Ok(metrics.GetSnapshot()));
-
+app.MapGet("/metrics", (ApiMetrics metrics) => Results.Ok(metrics.GetSnapshot())).AllowAnonymous();
 app.MapControllers();
 
 if (!app.Environment.IsEnvironment("Testing"))
@@ -188,16 +235,14 @@ if (!app.Environment.IsEnvironment("Testing"))
         catch (Exception ex) when (attempt < maxRetries)
         {
             Log.Warning(ex,
-                "Tentativa {Attempt}/{Max} de aplicar migrations falhou (Oracle ainda inicializando). " +
-                "Proxima tentativa em {Delay}s...",
+                "Tentativa {Attempt}/{Max} de aplicar migrations falhou. Nova tentativa em {Delay}s...",
                 attempt, maxRetries, retryDelaySeconds);
             Thread.Sleep(TimeSpan.FromSeconds(retryDelaySeconds));
         }
         catch (Exception ex)
         {
             Log.Error(ex,
-                "Todas as {Max} tentativas de aplicar migrations falharam. " +
-                "A API iniciara sem garantia de schema atualizado.",
+                "Todas as {Max} tentativas de aplicar migrations falharam. A API iniciara sem garantia de schema atualizado.",
                 maxRetries);
         }
     }

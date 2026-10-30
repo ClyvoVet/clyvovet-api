@@ -64,6 +64,7 @@ jobs:
           ORACLE_ROOT_PASSWORD: ${{ secrets.ORACLE_ROOT_PASSWORD }}
           ORACLE_APP_USER: ${{ secrets.ORACLE_APP_USER }}
           ORACLE_APP_PASSWORD: ${{ secrets.ORACLE_APP_PASSWORD }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: |
           cat > /tmp/gen_aci.py << 'PYEOF'
           import json, os, sys
@@ -78,6 +79,7 @@ jobs:
           oracle_root_pw = os.environ['ORACLE_ROOT_PASSWORD']
           oracle_app_usr = os.environ['ORACLE_APP_USER']
           oracle_app_pw  = os.environ['ORACLE_APP_PASSWORD']
+          jwt_secret      = os.environ.get('JWT_SECRET_KEY') or 'ClyvoVet_Sprint4_FIAP_2026_Chave_JWT_Segura_123456'
 
           api_image = f"{acr_server}/clyvovet-api:latest"
           conn_str  = f"Data Source=localhost:1521/FREEPDB1;User Id={oracle_app_usr};Password={oracle_app_pw};"
@@ -119,6 +121,14 @@ jobs:
                           }
                       },
                       {
+                          "name": "db-mongo",
+                          "properties": {
+                              "image": "mongo:8.0",
+                              "resources": {"requests": {"cpu": 0.5, "memoryInGB": 1.0}},
+                              "ports": [{"port": 27017, "protocol": "TCP"}]
+                          }
+                      },
+                      {
                           "name": "clyvo-api",
                           "properties": {
                               "image": api_image,
@@ -128,7 +138,9 @@ jobs:
                               "environmentVariables": [
                                   {"name": "ASPNETCORE_ENVIRONMENT",               "value":       "Production"},
                                   {"name": "ASPNETCORE_URLS",                      "value":       "http://+:5139"},
-                                  {"name": "ConnectionStrings__OracleDbConnection", "secureValue": conn_str}
+                                  {"name": "ConnectionStrings__OracleDbConnection", "secureValue": conn_str},
+                                  {"name": "ConnectionStrings__Mongodb",          "value": "mongodb://localhost:27017"},
+                                  {"name": "Secretkey",                            "secureValue": jwt_secret}
                               ]
                           }
                       }
@@ -160,7 +172,7 @@ jobs:
           echo "Aguardando 3 minutos para Oracle inicializar e API subir..."
           sleep 180
 
-      - name: Verificar saude do banco (/health/db)
+      - name: Verificar saude do banco (/api/health/db)
         run: |
           sleep 10
 
@@ -180,20 +192,20 @@ jobs:
             exit 1
           fi
 
-          HEALTH_URL="http://${FQDN}:${API_PORT}/health/db"
+          HEALTH_URL="http://${FQDN}:${API_PORT}/api/health/db"
           echo "Testando: ${HEALTH_URL}"
 
           for i in $(seq 1 10); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${HEALTH_URL}" || echo "000")
             echo "Tentativa ${i}/10: HTTP ${STATUS}"
             if [[ "${STATUS}" == "200" ]]; then
-              echo "Deploy verificado -- Oracle acessivel via /health/db"
+              echo "Deploy verificado -- Oracle acessivel via /api/health/db"
               exit 0
             fi
             [[ $i -lt 10 ]] && sleep 30
           done
 
-          echo "ERRO: /health/db nao respondeu HTTP 200 apos 10 tentativas (~5 min)"
+          echo "ERRO: /api/health/db nao respondeu HTTP 200 apos 10 tentativas (~5 min)"
           az container logs \
             --resource-group "$RG_NAME" \
             --name "$CG_NAME" \

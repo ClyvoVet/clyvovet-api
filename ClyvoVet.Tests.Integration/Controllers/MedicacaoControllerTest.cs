@@ -34,7 +34,8 @@ namespace ClyvoVet.Tests.Integration
         {
             // Arrange
             _factory.MedicacaoUseCaseMock.Reset();
-            _factory.MedicacaoUseCaseMock.Setup(x => x.ObterUmaMedicacaoAsync(1)).ReturnsAsync(new Medicacao { IdMedicacao = 1, IdPet = 1, Nome = "Vermifugo" });
+            _factory.MedicacaoUseCaseMock.Setup(x => x.ObterMedicacaoResponseAsync(1))
+                .ReturnsAsync(OperationResult<MedicacaoResponseDto?>.Success(new MedicacaoResponseDto { IdMedicacao = 1, IdPet = 1, Nome = "Vermifugo" }));
             using var client = _factory.CreateClient();
 
             // Act
@@ -50,7 +51,8 @@ namespace ClyvoVet.Tests.Integration
         {
             // Arrange
             _factory.MedicacaoUseCaseMock.Reset();
-            _factory.MedicacaoUseCaseMock.Setup(x => x.ObterUmaMedicacaoAsync(999)).ReturnsAsync((Medicacao?)null);
+            _factory.MedicacaoUseCaseMock.Setup(x => x.ObterMedicacaoResponseAsync(999))
+                .ReturnsAsync(OperationResult<MedicacaoResponseDto?>.Failure("Medicação não encontrada.", 404));
             using var client = _factory.CreateClient();
 
             // Act

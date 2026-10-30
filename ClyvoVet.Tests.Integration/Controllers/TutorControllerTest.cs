@@ -17,25 +17,12 @@ namespace ClyvoVet.Tests.Integration
         public async Task Post_TutorValido_DeveRetornarCreated()
         {
             // Arrange
-            var request = new TutorRequestDto
-            {
-                IdTutor = 1,
-                Nome = "Ana",
-                Email = "ana@example.com",
-                Cpf = "104.332.181-00",
-                Senha = "123456"
-            };
+            var request = new TutorRequestDto { IdTutor = 1, Nome = "Ana", Email = "ana@example.com", Cpf = "104.332.181-00", Senha = "123456" };
             _factory.TutorUseCaseMock.Reset();
-            _factory.TutorUseCaseMock
-                .Setup(x => x.AdicionarTutorAsync(It.IsAny<TutorRequestDto>()))
-                .ReturnsAsync(new Tutor
-                {
-                    IdTutor = 1,
-                    Nome = request.Nome,
-                    Email = request.Email,
-                    Cpf = request.Cpf,
-                    Senha = request.Senha
-                });
+            _factory.TutorUseCaseMock.Setup(x => x.AdicionarTutorAsync(It.IsAny<TutorRequestDto>())).ReturnsAsync(new Tutor
+            {
+                IdTutor = 1, Nome = request.Nome, Email = request.Email, Cpf = request.Cpf, Senha = request.Senha
+            });
             using var client = _factory.CreateClient();
 
             // Act
@@ -47,28 +34,19 @@ namespace ClyvoVet.Tests.Integration
 
         [Fact]
         [Trait("Controller", "Tutores")]
-        public async Task Post_EmailExistente_DeveRetornarBadRequest()
+        public async Task Post_EmailExistente_DeveRetornarConflict()
         {
             // Arrange
-            var request = new TutorRequestDto
-            {
-                IdTutor = 1,
-                Nome = "Ana",
-                Email = "ana@example.com",
-                Cpf = "104.332.181-00",
-                Senha = "123456"
-            };
+            var request = new TutorRequestDto { IdTutor = 1, Nome = "Ana", Email = "ana@example.com", Cpf = "104.332.181-00", Senha = "123456" };
             _factory.TutorUseCaseMock.Reset();
-            _factory.TutorUseCaseMock
-                .Setup(x => x.AdicionarTutorAsync(It.IsAny<TutorRequestDto>()))
-                .ReturnsAsync((Tutor?)null);
+            _factory.TutorUseCaseMock.Setup(x => x.AdicionarTutorAsync(It.IsAny<TutorRequestDto>())).ReturnsAsync((Tutor?)null);
             using var client = _factory.CreateClient();
 
             // Act
             var response = await client.PostAsJsonAsync("api/tutors", request);
 
             // Assert
-            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         }
 
         [Fact]
@@ -77,18 +55,9 @@ namespace ClyvoVet.Tests.Integration
         {
             // Arrange
             var request = new LoginRequestDto { Email = "ana@example.com", Senha = "123456" };
-            var tutor = new Tutor
-            {
-                IdTutor = 1,
-                Nome = "Ana",
-                Email = request.Email,
-                Cpf = "104.332.181-00",
-                Senha = request.Senha
-            };
             _factory.TutorUseCaseMock.Reset();
-            _factory.TutorUseCaseMock
-                .Setup(x => x.AutenticarTutorAsync(It.IsAny<LoginRequestDto>()))
-                .ReturnsAsync(tutor);
+            _factory.TutorUseCaseMock.Setup(x => x.AutenticarTutorComJwtAsync(It.IsAny<LoginRequestDto>()))
+                .ReturnsAsync(OperationResult<AuthResponseDto?>.Success(new AuthResponseDto { Email = request.Email, Jwt = "token", ExpiresAtUtc = DateTime.UtcNow.AddHours(1) }));
             using var client = _factory.CreateClient();
 
             // Act
@@ -105,9 +74,8 @@ namespace ClyvoVet.Tests.Integration
             // Arrange
             var request = new LoginRequestDto { Email = "ana@example.com", Senha = "senhaerrada" };
             _factory.TutorUseCaseMock.Reset();
-            _factory.TutorUseCaseMock
-                .Setup(x => x.AutenticarTutorAsync(It.IsAny<LoginRequestDto>()))
-                .ReturnsAsync((Tutor?)null);
+            _factory.TutorUseCaseMock.Setup(x => x.AutenticarTutorComJwtAsync(It.IsAny<LoginRequestDto>()))
+                .ReturnsAsync(OperationResult<AuthResponseDto?>.Failure("E-mail ou senha inválidos.", 401));
             using var client = _factory.CreateClient();
 
             // Act
@@ -123,14 +91,8 @@ namespace ClyvoVet.Tests.Integration
         {
             // Arrange
             _factory.TutorUseCaseMock.Reset();
-            _factory.TutorUseCaseMock.Setup(x => x.ObterUmTutorAsync(1)).ReturnsAsync(new Tutor
-            {
-                IdTutor = 1,
-                Nome = "Ana",
-                Email = "ana@example.com",
-                Cpf = "104.332.181-00",
-                Senha = "123456"
-            });
+            _factory.TutorUseCaseMock.Setup(x => x.ObterTutorResponseAsync(1))
+                .ReturnsAsync(OperationResult<TutorResponseDto?>.Success(new TutorResponseDto { IdTutor = 1, Nome = "Ana", Email = "ana@example.com", Cpf = "104.332.181-00" }));
             using var client = _factory.CreateClient();
 
             // Act
@@ -146,7 +108,8 @@ namespace ClyvoVet.Tests.Integration
         {
             // Arrange
             _factory.TutorUseCaseMock.Reset();
-            _factory.TutorUseCaseMock.Setup(x => x.ObterUmTutorAsync(999)).ReturnsAsync((Tutor?)null);
+            _factory.TutorUseCaseMock.Setup(x => x.ObterTutorResponseAsync(999))
+                .ReturnsAsync(OperationResult<TutorResponseDto?>.Failure("Tutor não encontrado.", 404));
             using var client = _factory.CreateClient();
 
             // Act

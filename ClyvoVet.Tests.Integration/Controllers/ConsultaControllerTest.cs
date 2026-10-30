@@ -34,7 +34,8 @@ namespace ClyvoVet.Tests.Integration
         {
             // Arrange
             _factory.ConsultaUseCaseMock.Reset();
-            _factory.ConsultaUseCaseMock.Setup(x => x.ObterUmaConsultaAsync(1)).ReturnsAsync(new Consulta { IdConsulta = 1, IdPet = 1, DataConsulta = DateTime.Today });
+            _factory.ConsultaUseCaseMock.Setup(x => x.ObterConsultaResponseAsync(1))
+                .ReturnsAsync(OperationResult<ConsultaResponseDto?>.Success(new ConsultaResponseDto { IdConsulta = 1, IdPet = 1, DataConsulta = DateTime.Today }));
             using var client = _factory.CreateClient();
 
             // Act
@@ -50,7 +51,8 @@ namespace ClyvoVet.Tests.Integration
         {
             // Arrange
             _factory.ConsultaUseCaseMock.Reset();
-            _factory.ConsultaUseCaseMock.Setup(x => x.ObterTodasConsultasAsync()).ReturnsAsync(Array.Empty<Consulta>());
+            _factory.ConsultaUseCaseMock.Setup(x => x.ObterConsultasPaginadasAsync(It.IsAny<ConsultaQueryDto>()))
+                .ReturnsAsync(OperationResult<PageResponseDto<ConsultaResponseDto>>.Failure("Sem consultas", 204));
             using var client = _factory.CreateClient();
 
             // Act

@@ -38,3 +38,6 @@ Thumbs.db
 *.sln.docstates
 .env
 
+
+# Testes / cobertura
+**/TestResults/

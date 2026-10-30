@@ -1,4 +1,4 @@
-﻿name: .NET API CI Pipeline
+name: .NET API CI Pipeline
 
 on:
   push:
@@ -19,10 +19,20 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Restaurar dependências
-        working-directory: ./ClyvoVet.Api
-        run: dotnet restore
+      - name: Restaurar API
+        run: dotnet restore ./ClyvoVet.Api/ClyvoVet.Api.csproj
 
-      - name: Compilar o projeto (Build)
-        working-directory: ./ClyvoVet.Api
-        run: dotnet build --no-restore --configuration Release
+      - name: Restaurar testes unitários
+        run: dotnet restore ./ClyvoVet.Tests.Unit/ClyvoVet.Tests.Unit.csproj
+
+      - name: Restaurar testes de integração
+        run: dotnet restore ./ClyvoVet.Tests.Integration/ClyvoVet.Tests.Integration.csproj
+
+      - name: Compilar API
+        run: dotnet build ./ClyvoVet.Api/ClyvoVet.Api.csproj --no-restore --configuration Release
+
+      - name: Executar testes unitários
+        run: dotnet test ./ClyvoVet.Tests.Unit/ClyvoVet.Tests.Unit.csproj --configuration Release --collect:"XPlat Code Coverage"
+
+      - name: Executar testes de integração
+        run: dotnet test ./ClyvoVet.Tests.Integration/ClyvoVet.Tests.Integration.csproj --configuration Release --collect:"XPlat Code Coverage"

@@ -526,11 +526,11 @@ provision_aci() {
 }
 
 # ==============================================================================
-# SECAO 9 -- TESTE DE SAUDE DA API (/health/live)
+# SECAO 9 -- TESTE DE SAUDE DA API (/api/health/live)
 # ==============================================================================
 
 wait_and_test_health() {
-    step_header "07" "${SYM_VET}  Verificando Saude da API (/health/live)"
+    step_header "07" "${SYM_VET}  Verificando Saude da API (/api/health/live)"
 
     # Tenta FQDN primeiro; cai para IP publico se DNS label nao estiver pronto
     local endpoint
@@ -549,7 +549,7 @@ wait_and_test_health() {
 
     export API_FQDN="${endpoint}"
 
-    local health_url="http://${endpoint}:${API_PORT}/health/live"
+    local health_url="http://${endpoint}:${API_PORT}/api/health/live"
     log_info "Endpoint de saude: ${C_BOLD}${health_url}${C_RESET}"
 
     local -r max_attempts=20
@@ -628,8 +628,8 @@ SUMMARY
     echo -e "  ${SYM_GLOBE} ${C_WHITE}${C_BOLD}Endpoints da Aplicacao${C_RESET}"
     separator
     echo -e "  ${C_YELLOW}API REST          :${C_RESET}  ${endpoint_base}"
-    echo -e "  ${C_YELLOW}Health Live       :${C_RESET}  ${endpoint_base}/health/live"
-    echo -e "  ${C_YELLOW}Health Ready      :${C_RESET}  ${endpoint_base}/health/ready"
+    echo -e "  ${C_YELLOW}Health Live       :${C_RESET}  ${endpoint_base}/api/health/live"
+    echo -e "  ${C_YELLOW}Health Ready      :${C_RESET}  ${endpoint_base}/api/health/db"
     echo ""
     separator
     echo -e "  ${SYM_PAW} ${C_WHITE}${C_BOLD}Comandos Uteis (Azure CLI)${C_RESET}"

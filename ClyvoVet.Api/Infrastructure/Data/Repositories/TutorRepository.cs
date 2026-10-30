@@ -18,26 +18,51 @@ namespace ClyvoVet.API.Infrastructure.Data.Repositories
             return await _applicationContext.Tutores.AsNoTracking().ToListAsync();
         }
 
+        public async Task<(IEnumerable<Tutor> data, int rowsCount)> ObterPaginadoAsync(
+            int deslocamento, int registroRetornado, string? nome, string? email, string ordenarPor, bool descendente)
+        {
+            using var activity = ActivitySource.StartActivity("TutorRepository.ObterPaginadoAsync");
+            deslocamento = Math.Max(0, deslocamento);
+            registroRetornado = registroRetornado <= 0 ? 10 : Math.Min(registroRetornado, 100);
+
+            var query = _applicationContext.Tutores.AsNoTracking().AsQueryable();
+            if (!string.IsNullOrWhiteSpace(nome))
+                query = query.Where(x => x.Nome.ToLower().Contains(nome.ToLower()));
+            if (!string.IsNullOrWhiteSpace(email))
+                query = query.Where(x => x.Email.ToLower().Contains(email.ToLower()));
+
+            var total = await query.CountAsync();
+            query = (ordenarPor.ToLowerInvariant(), descendente) switch
+            {
+                ("nome", false) => query.OrderBy(x => x.Nome),
+                ("nome", true) => query.OrderByDescending(x => x.Nome),
+                ("email", false) => query.OrderBy(x => x.Email),
+                ("email", true) => query.OrderByDescending(x => x.Email),
+                ("idtutor", true) => query.OrderByDescending(x => x.IdTutor),
+                _ => query.OrderBy(x => x.IdTutor)
+            };
+
+            var data = await query.Skip(deslocamento).Take(registroRetornado).ToListAsync();
+            return (data, total);
+        }
+
         public async Task<Tutor?> ObterUmAsync(int id)
         {
             using var activity = ActivitySource.StartActivity("TutorRepository.ObterUmAsync");
             activity?.SetTag("tutor.id", id);
-            return await _applicationContext.Tutores.FirstOrDefaultAsync(x => x.IdTutor == id);
+            return await _applicationContext.Tutores.AsNoTracking().FirstOrDefaultAsync(x => x.IdTutor == id);
         }
 
         public async Task<Tutor?> ObterPorCredenciaisAsync(string email, string senha)
         {
             using var activity = ActivitySource.StartActivity("TutorRepository.ObterPorCredenciaisAsync");
-            return await _applicationContext.Tutores
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Email == email && x.Senha == senha);
+            return await _applicationContext.Tutores.AsNoTracking().FirstOrDefaultAsync(x => x.Email == email && x.Senha == senha);
         }
 
         public async Task<bool> ExisteEmailAsync(string email)
         {
             using var activity = ActivitySource.StartActivity("TutorRepository.ExisteEmailAsync");
-            var quantidade = await _applicationContext.Tutores.CountAsync(x => x.Email == email);
-            return quantidade > 0;
+            return await _applicationContext.Tutores.AnyAsync(x => x.Email == email);
         }
 
         public async Task<Tutor> AdicionarAsync(Tutor entity)

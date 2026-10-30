@@ -1,79 +1,61 @@
-@ClyvoVet_API_HostAddress = http://localhost:5139
+@host = http://localhost:5139
+@token = COLE_O_JWT_AQUI
 
-### Health - API
-GET {{ClyvoVet_API_HostAddress}}/api/health/live
-Accept: application/json
+### Health API
+GET {{host}}/api/health/live
 
-### Health - Oracle
-GET {{ClyvoVet_API_HostAddress}}/api/health/db
-Accept: application/json
+### Health Oracle
+GET {{host}}/api/health/db
 
-### Tutores - listar
-GET {{ClyvoVet_API_HostAddress}}/api/tutors
-Accept: application/json
-
-### Tutores - cadastrar
-POST {{ClyvoVet_API_HostAddress}}/api/tutors
+### Cadastro de tutor - público
+POST {{host}}/api/tutors
 Content-Type: application/json
 
 {
   "idTutor": 1,
-  "nome": "Ana Beatriz Souza",
-  "email": "ana.souza@example.com",
-  "telefone": "11988887777",
-  "cpf": "104.332.181-00",
+  "nome": "Tutor Teste",
+  "email": "tutor@teste.com",
+  "telefone": "11999999999",
+  "cpf": "123.456.789-00",
   "senha": "123456"
 }
 
-### Tutores - login
-POST {{ClyvoVet_API_HostAddress}}/api/tutors/login
+### Login JWT - público
+POST {{host}}/api/tutors/login
 Content-Type: application/json
 
 {
-  "email": "ana.souza@example.com",
+  "email": "tutor@teste.com",
   "senha": "123456"
 }
 
-### Pets - cadastrar
-POST {{ClyvoVet_API_HostAddress}}/api/pets
+### Pets paginados, filtrados e ordenados
+GET {{host}}/api/pets?deslocamento=0&registroRetornado=10&especie=Cachorro&ordenarPor=nome&direcao=asc
+Authorization: Bearer {{token}}
+
+### Consulta por ID
+GET {{host}}/api/consultas/1
+Authorization: Bearer {{token}}
+
+### Medicações por pet
+GET {{host}}/api/medicacoes/pet/1
+Authorization: Bearer {{token}}
+
+### Histórico clínico MongoDB
+GET {{host}}/api/historicos-clinicos?deslocamento=0&registroRetornado=10&idPet=1
+Authorization: Bearer {{token}}
+
+### Criar histórico clínico MongoDB
+POST {{host}}/api/historicos-clinicos
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
   "idPet": 1,
-  "idTutor": 1,
-  "nome": "Thor",
-  "especie": "Cachorro",
-  "raca": "Labrador",
-  "dataNascimento": "2021-03-10T00:00:00",
-  "pesoKg": 28.50
+  "tipo": "Observacao",
+  "descricao": "Paciente apresentou boa evolução clínica.",
+  "tags": ["retorno", "evolucao"]
 }
 
-### Consultas - cadastrar
-POST {{ClyvoVet_API_HostAddress}}/api/consultas
-Content-Type: application/json
-
-{
-  "idConsulta": 1,
-  "idPet": 1,
-  "dataConsulta": "2026-01-10T00:00:00",
-  "veterinario": "Dr. Marcelo Lima",
-  "observacoes": "Consulta de rotina, animal saudavel"
-}
-
-### Medicacoes - cadastrar
-POST {{ClyvoVet_API_HostAddress}}/api/medicacoes
-Content-Type: application/json
-
-{
-  "idMedicacao": 1,
-  "idPet": 1,
-  "nome": "Vermifugo",
-  "dose": "1 comprimido",
-  "frequencia": "Dose unica",
-  "dataInicio": "2026-01-10T00:00:00",
-  "dataFim": "2026-01-10T00:00:00"
-}
-
-### Metricas
-GET {{ClyvoVet_API_HostAddress}}/metrics
-Accept: application/json
+### Métricas
+GET {{host}}/metrics
