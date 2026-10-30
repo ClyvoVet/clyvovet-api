@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ClyvoVet.API\ClyvoVet.API.csproj" />
+    <ProjectReference Include="..\ClyvoVet.Api\ClyvoVet.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

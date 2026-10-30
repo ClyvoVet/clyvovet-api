@@ -1,0 +1,237 @@
+# ==============================================================================
+# ClyvoVet - Azure Pipelines (CI + CD)
+#   CI: restore, build, testes automaticos, publicacao do artefato e imagem no ACR
+#   CD: recria o container group no ACI e valida /health/db
+# Segredos (usuario/senha do Oracle) ficam no Variable Group "clyvovet-secrets"
+# ==============================================================================
+
+trigger:
+  branches:
+    include:
+      - main
+      - master
+
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: clyvovet-secrets            # ORACLE_ROOT_PASSWORD, ORACLE_APP_USER, ORACLE_APP_PASSWORD (todos secret)
+  - name: buildConfiguration
+    value: Release
+  - name: acrName
+    value: clyvovetacr562012
+  - name: imageRepository
+    value: clyvovet-api
+  - name: resourceGroup
+    value: rg-clyvovet-aci
+  - name: location
+    value: mexicocentral
+  - name: containerGroupName
+    value: cg-clyvovet
+  - name: dnsLabel
+    value: clyvovet-api-rm562012
+  - name: apiCsproj
+    value: ClyvoVet.Api/ClyvoVet.Api.csproj   # AJUSTAR se o caminho for diferente
+  - name: dockerContext
+    value: ClyvoVet.Api                        # pasta onde esta o Dockerfile
+  - name: testProjects
+    value: '**/*Tests*.csproj'                 # AJUSTAR para o nome real do projeto de testes
+
+stages:
+
+# ------------------------------------------------------------------------------
+# CI - Build, testes, artefato e imagem
+# ------------------------------------------------------------------------------
+- stage: CI
+  displayName: CI - Build, Testes e Artefato
+  jobs:
+  - job: BuildTest
+    displayName: Build e Testes
+    steps:
+
+    - task: UseDotNet@2
+      displayName: Instalar .NET 8 SDK
+      inputs:
+        packageType: sdk
+        version: 8.0.x
+
+    - task: DotNetCoreCLI@2
+      displayName: Restore
+      inputs:
+        command: restore
+        projects: '**/*.csproj'
+
+    - task: DotNetCoreCLI@2
+      displayName: Build
+      inputs:
+        command: build
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-restore'
+
+    - task: DotNetCoreCLI@2
+      displayName: Testes automatizados (xUnit)
+      inputs:
+        command: test
+        projects: '$(testProjects)'
+        arguments: '--configuration $(buildConfiguration) --no-build'
+        publishTestResults: true
+
+    - task: DotNetCoreCLI@2
+      displayName: Publish da API
+      inputs:
+        command: publish
+        publishWebProjects: false
+        projects: '$(apiCsproj)'
+        arguments: '--configuration $(buildConfiguration) --no-build --output $(Build.ArtifactStagingDirectory)/app'
+        zipAfterPublish: true
+
+    - task: PublishPipelineArtifact@1
+      displayName: Publicar artefato (drop)
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/app'
+        artifact: drop
+
+    - task: Docker@2
+      displayName: Build e push da imagem no ACR
+      inputs:
+        containerRegistry: sc-acr-clyvovet
+        repository: $(imageRepository)
+        command: buildAndPush
+        Dockerfile: '$(dockerContext)/Dockerfile'
+        buildContext: '$(dockerContext)'
+        tags: |
+          $(Build.BuildId)
+          latest
+
+# ------------------------------------------------------------------------------
+# CD - Deploy no Azure Container Instances
+# ------------------------------------------------------------------------------
+- stage: CD
+  displayName: CD - Deploy no ACI
+  dependsOn: CI
+  condition: succeeded()
+  jobs:
+  - deployment: DeployACI
+    displayName: Deploy no Azure Container Instances
+    environment: producao
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          - task: AzureCLI@2
+            displayName: Recriar container group (Oracle + API)
+            inputs:
+              azureSubscription: sc-azure-clyvovet
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
+
+                ACR_SERVER=$(az acr show -n "$(acrName)" --query loginServer -o tsv)
+                ACR_USER=$(az acr credential show -n "$(acrName)" --query username -o tsv)
+                ACR_PASS=$(az acr credential show -n "$(acrName)" --query "passwords[0].value" -o tsv)
+                echo "##vso[task.setvariable variable=ACR_PASS_MASKED;issecret=true]$ACR_PASS"
+
+                export ACR_SERVER ACR_USER ACR_PASS
+                export IMAGE_TAG="$(Build.BuildId)"
+                export IMAGE_REPO="$(imageRepository)"
+                export LOCATION="$(location)"
+                export CG_NAME="$(containerGroupName)"
+                export DNS_LABEL="$(dnsLabel)"
+
+                # Manifesto gerado em JSON (serializacao segura de senhas e caracteres especiais)
+                python3 - <<'PY'
+                import json, os
+                e = os.environ
+                conn = ("Data Source=localhost:1521/FREEPDB1;"
+                        "User Id=" + e["ORACLE_APP_USER"] + ";"
+                        "Password=" + e["ORACLE_APP_PASSWORD"] + ";")
+                wait_cmd = ("until (echo > /dev/tcp/localhost/1521) 2>/dev/null; "
+                            "do echo 'Aguardando listener Oracle...'; sleep 5; done; "
+                            "echo 'Listener ok, aguardando abertura do banco (60s)'; sleep 60; "
+                            "echo 'Iniciando API'; exec dotnet ClyvoVet.Api.dll")
+                manifest = {
+                    "apiVersion": "2021-10-01",
+                    "location": e["LOCATION"],
+                    "name": e["CG_NAME"],
+                    "type": "Microsoft.ContainerInstance/containerGroups",
+                    "properties": {
+                        "osType": "Linux",
+                        "restartPolicy": "Always",
+                        "imageRegistryCredentials": [{
+                            "server": e["ACR_SERVER"],
+                            "username": e["ACR_USER"],
+                            "password": e["ACR_PASS"]
+                        }],
+                        "containers": [
+                            {
+                                "name": "db-oracle",
+                                "properties": {
+                                    "image": "gvenzl/oracle-free:latest",
+                                    "resources": {"requests": {"cpu": 2.0, "memoryInGB": 4.0}},
+                                    "ports": [{"port": 1521, "protocol": "TCP"}],
+                                    "environmentVariables": [
+                                        {"name": "ORACLE_PASSWORD", "secureValue": e["ORACLE_ROOT_PASSWORD"]},
+                                        {"name": "APP_USER", "value": e["ORACLE_APP_USER"]},
+                                        {"name": "APP_USER_PASSWORD", "secureValue": e["ORACLE_APP_PASSWORD"]}
+                                    ]
+                                }
+                            },
+                            {
+                                "name": "clyvo-api",
+                                "properties": {
+                                    "image": e["ACR_SERVER"] + "/" + e["IMAGE_REPO"] + ":" + e["IMAGE_TAG"],
+                                    "resources": {"requests": {"cpu": 1.0, "memoryInGB": 1.5}},
+                                    "ports": [{"port": 5139, "protocol": "TCP"}],
+                                    "environmentVariables": [
+                                        {"name": "ASPNETCORE_ENVIRONMENT", "value": "Production"},
+                                        {"name": "ASPNETCORE_URLS", "value": "http://+:5139"},
+                                        {"name": "ConnectionStrings__OracleDbConnection", "secureValue": conn}
+                                    ],
+                                    "command": ["bash", "-c", wait_cmd]
+                                }
+                            }
+                        ],
+                        "ipAddress": {
+                            "type": "Public",
+                            "dnsNameLabel": e["DNS_LABEL"],
+                            "ports": [{"protocol": "TCP", "port": 5139}]
+                        }
+                    }
+                }
+                with open("/tmp/aci.json", "w") as f:
+                    json.dump(manifest, f)
+                print("Manifesto ACI gerado.")
+                PY
+
+                az container delete -g "$(resourceGroup)" -n "$(containerGroupName)" --yes || true
+                az container create -g "$(resourceGroup)" --file /tmp/aci.json --output none
+                echo "Container group criado."
+            env:
+              ORACLE_ROOT_PASSWORD: $(ORACLE_ROOT_PASSWORD)
+              ORACLE_APP_USER: $(ORACLE_APP_USER)
+              ORACLE_APP_PASSWORD: $(ORACLE_APP_PASSWORD)
+
+          - task: AzureCLI@2
+            displayName: Validar saude da aplicacao (/health/db)
+            inputs:
+              azureSubscription: sc-azure-clyvovet
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                FQDN=$(az container show -g "$(resourceGroup)" -n "$(containerGroupName)" --query ipAddress.fqdn -o tsv)
+                echo "FQDN: $FQDN"
+                for i in {1..40}; do
+                  code=$(curl -s -o /dev/null -w "%{http_code}" "http://$FQDN:5139/health/db" || true)
+                  echo "Tentativa $i/40: HTTP $code"
+                  if [ "$code" = "200" ]; then
+                    echo "Deploy verificado: Oracle acessivel via /health/db"
+                    exit 0
+                  fi
+                  sleep 15
+                done
+                echo "API nao respondeu a tempo"
+                exit 1

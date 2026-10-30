@@ -141,7 +141,7 @@ Principais campos:
 A API está organizada nas seguintes camadas:
 
 ```text
-ClyvoVet.API/
+ClyvoVet.Api/
 ├── Application/
 │   ├── Dtos/
 │   ├── Interfaces/
@@ -716,7 +716,7 @@ Os testes também podem ser executados através do **Test Explorer** do Visual S
 Configure a connection string Oracle e execute:
 
 ```bash
-dotnet run --project ./ClyvoVet.API/ClyvoVet.API.csproj
+dotnet run --project ./ClyvoVet.Api/ClyvoVet.Api.csproj
 ```
 
 Ou execute pelo Visual Studio utilizando `F5`.
