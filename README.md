@@ -1,10 +1,10 @@
-# ClyvoVet - API RESTful .NET 8 | Sprint 4
+# ClyvoVet - API RESTful .NET 8
 
 ## Sobre o projeto
 
 O **ClyvoVet** é uma API RESTful desenvolvida em **ASP.NET Core 8** para gerenciamento de tutores, pets, consultas veterinárias, medicações e histórico clínico.
 
-A Sprint 4 consolida as funcionalidades das sprints anteriores e adiciona os requisitos finais da disciplina **Advanced Business Development with .NET**:
+A solução integra os seguintes recursos:
 
 - Clean Architecture e Injeção de Dependência;
 - tratamento global de exceções;
@@ -47,47 +47,48 @@ A Sprint 4 consolida as funcionalidades das sprints anteriores e adiciona os req
 O projeto está organizado em camadas, mantendo as responsabilidades separadas.
 
 ```text
-ClyvoVet.Api/
-├── Presentation/
-│   └── Controllers/
-├── Application/
-│   ├── Dtos/
-│   ├── Helpers/
-│   ├── Interfaces/
-│   ├── Mappers/
-│   └── UseCases/
-├── Domain/
-│   ├── Entities/
-│   ├── Errors/
-│   ├── Interfaces/
-│   └── Models/
-├── Infrastructure/
-│   ├── Data/
-│   │   ├── Migrations/
-│   │   └── Repositories/
-│   ├── Errors/
-│   ├── IoC/
-│   ├── Observability/
-│   └── Security/
-└── Program.cs
+ClyvoVet/
+├── ClyvoVet.Api/
+│   ├── Presentation/
+│   │   └── Controllers/
+│   ├── Application/
+│   │   ├── Dtos/
+│   │   ├── Helpers/
+│   │   ├── Interfaces/
+│   │   ├── Mappers/
+│   │   └── UseCases/
+│   ├── Domain/
+│   │   ├── Entities/
+│   │   ├── Errors/
+│   │   ├── Interfaces/
+│   │   └── Models/
+│   ├── Infrastructure/
+│   │   ├── Data/
+│   │   │   ├── Migrations/
+│   │   │   └── Repositories/
+│   │   ├── Errors/
+│   │   ├── IoC/
+│   │   ├── Observability/
+│   │   └── Security/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   └── Program.cs
+├── ClyvoVet.Tests.Unit/
+│   ├── Application/
+│   ├── Domain/
+│   └── Infrastructure/
+├── ClyvoVet.Tests.Integration/
+│   ├── Controllers/
+│   ├── Fixtures/
+│   └── HealthChecks/
+├── ClyvoVet.slnx
+└── README.md
 ```
 
 ### Diagrama da solução
 
-```mermaid
-flowchart TD
-    Client[Cliente / Swagger] --> Presentation[Presentation - Controllers]
-    Presentation --> Application[Application - UseCases / DTOs / Mappers]
-    Application --> Domain[Domain - Entities / Interfaces / Errors]
+<img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/e13562d7-0b0b-4b66-9f70-23e89b1860f9" />
 
-    Infrastructure[Infrastructure] -. implementa contratos .-> Domain
-    Infrastructure --> Oracle[(Oracle Database)]
-    Infrastructure --> Mongo[(MongoDB)]
-    Infrastructure --> JWT[JWT Security]
-    Infrastructure --> Obs[Serilog / OpenTelemetry / Metrics]
-
-    Application --> Infrastructure
-```
 
 ### Responsabilidade de cada camada
 
@@ -191,7 +192,7 @@ O histórico clínico foi mantido em NoSQL para demonstrar armazenamento de docu
 
 ## Autenticação e autorização JWT
 
-A Sprint 4 substitui o retorno simples do login por um **JWT**.
+A autenticação utiliza **JWT Bearer Token** para identificar o tutor e autorizar o acesso aos endpoints protegidos.
 
 ### Cadastro público
 
@@ -250,10 +251,10 @@ Os endpoints de negócio utilizam `[Authorize(Roles = "tutor")]`, demonstrando a
 Em `appsettings.Development.json`:
 
 ```json
-"Secretkey": "ClyvoVet_Sprint4_FIAP_2026_Chave_JWT_Segura_123456"
+"Secretkey": "SUA_CHAVE_JWT_SEGURA"
 ```
 
-A chave é lida diretamente por `builder.Configuration["Secretkey"]`, seguindo o padrão utilizado em aula. A validade do token é de 8 horas e fica definida no código. Para ambientes compartilhados ou produção, substitua a chave por uma chave segura e preferencialmente configure-a por variável de ambiente:
+A chave é lida diretamente por `builder.Configuration["Secretkey"]`. A validade do token é de 8 horas e fica definida no código. Em ambientes compartilhados ou de produção, a chave deve ser fornecida por configuração segura, como variável de ambiente:
 
 ```text
 Secretkey
@@ -393,7 +394,7 @@ Configuração padrão:
 }
 ```
 
-O nome do banco MongoDB é definido no `Bootstrap.cs` como `ClyvoVet`, seguindo o padrão utilizado no projeto de exemplo da disciplina.
+O nome do banco MongoDB é definido no `Bootstrap.cs` como `ClyvoVet`.
 
 A coleção é criada/utilizada pelo MongoDB quando os documentos são persistidos.
 
@@ -579,7 +580,7 @@ São utilizados:
 - Fixtures e Collection Fixtures;
 - EF Core InMemory;
 - autenticação de teste para endpoints protegidos;
-- testes específicos da Sprint 4 para JWT, HATEOAS e MongoDB/Application.
+- testes para JWT, HATEOAS, regras da camada Application e integração dos endpoints.
 
 ### Executar todos os testes
 
@@ -622,7 +623,7 @@ Edite:
 ClyvoVet.Api/appsettings.Development.json
 ```
 
-A entrega deixa a estrutura da connection string pronta, porém **sem credenciais Oracle**:
+O arquivo mantém a estrutura da connection string, porém **sem credenciais Oracle**:
 
 ```json
 "OracleDbConnection": "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=oracle.fiap.com.br)(PORT=1521))) (CONNECT_DATA=(SERVER=DEDICATED)(SID=ORCL)));User Id=;Password=;"
@@ -648,7 +649,7 @@ Se utilizar MongoDB Atlas ou outro servidor, substitua pela connection string co
 
 ### 4. Configurar a chave JWT
 
-Para uso acadêmico local há uma chave de desenvolvimento configurada. Para outro ambiente, substitua:
+Configure uma chave JWT adequada ao ambiente:
 
 ```json
 "Secretkey": "SUA_CHAVE_SEGURA"
@@ -740,8 +741,9 @@ As migrations EF Core se aplicam ao banco **relacional Oracle**. O MongoDB não 
 
 ## Integrantes
 
+- **Emanuel Italo** - RM: 561337
 - **Enzo Monteiro Maciel** - RM: 563734
+- **Gabriel Bebé Silva** - RM: 562012
 - **Matheus de Almeida Sousa** - RM: 563557
 - **Paulo Estalise** - RM: 563811
-- **Gabriel Bebé Silva** - RM: 562012
-- **Emanuel Italo** - RM: 561337
+
