@@ -17,7 +17,7 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  - group: clyvovet-secrets            # ORACLE_ROOT_PASSWORD, ORACLE_APP_USER, ORACLE_APP_PASSWORD (todos secret)
+  - group: clyvovet-secrets
   - name: buildConfiguration
     value: Release
   - name: acrName
@@ -33,11 +33,11 @@ variables:
   - name: dnsLabel
     value: clyvovet-api-rm562012
   - name: apiCsproj
-    value: ClyvoVet.Api/ClyvoVet.Api.csproj   # AJUSTAR se o caminho for diferente
+    value: ClyvoVet.Api/ClyvoVet.Api.csproj
   - name: dockerContext
-    value: ClyvoVet.Api                        # pasta onde esta o Dockerfile
+    value: ClyvoVet.Api
   - name: testProjects
-    value: '**/*Tests*.csproj'                 # AJUSTAR para o nome real do projeto de testes
+    value: '**/*Tests*.csproj'
 
 stages:
 
