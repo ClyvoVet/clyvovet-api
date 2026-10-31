@@ -600,6 +600,8 @@ dotnet test .\ClyvoVet.Tests.Unit\ClyvoVet.Tests.Unit.csproj --collect:"XPlat Co
 dotnet test .\ClyvoVet.Tests.Integration\ClyvoVet.Tests.Integration.csproj --collect:"XPlat Code Coverage"
 ```
 
+Os testes também podem ser executados através do `Test Explorer` do Visual Studio.
+
 Os resultados são gerados dentro de `TestResults`.
 
 ---
