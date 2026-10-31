@@ -1,7 +1,7 @@
 # ==============================================================================
 # ClyvoVet - Azure Pipelines (CI + CD)
 #   CI: restore, build, testes automaticos, publicacao do artefato e imagem no ACR
-#   CD: recria o container group no ACI e valida /health/db
+#   CD: recria o container group no ACI e valida /api/health/db
 # Segredos (usuario/senha do Oracle) ficam no Variable Group "clyvovet-secrets"
 # ==============================================================================
 
@@ -216,7 +216,7 @@ stages:
               ORACLE_APP_PASSWORD: $(ORACLE_APP_PASSWORD)
 
           - task: AzureCLI@2
-            displayName: Validar saude da aplicacao (/health/db)
+            displayName: Validar saude da aplicacao (/api/health/db)
             inputs:
               azureSubscription: sc-azure-clyvovet
               scriptType: bash
@@ -225,10 +225,10 @@ stages:
                 FQDN=$(az container show -g "$(resourceGroup)" -n "$(containerGroupName)" --query ipAddress.fqdn -o tsv)
                 echo "FQDN: $FQDN"
                 for i in {1..40}; do
-                  code=$(curl -s -o /dev/null -w "%{http_code}" "http://$FQDN:5139/health/db" || true)
+                  code=$(curl -s -o /dev/null -w "%{http_code}" "http://$FQDN:5139/api/health/db" || true)
                   echo "Tentativa $i/40: HTTP $code"
                   if [ "$code" = "200" ]; then
-                    echo "Deploy verificado: Oracle acessivel via /health/db"
+                    echo "Deploy verificado: Oracle acessivel via /api/health/db"
                     exit 0
                   fi
                   sleep 15
