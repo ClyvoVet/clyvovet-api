@@ -1,0 +1,476 @@
+{
+  "info": {
+    "name": "ClyvoVet API - Testes automatizados (Sprint 4)",
+    "description": "Testes de integracao e desempenho da API ClyvoVet. Executar na ordem, com Collection Runner ou Newman. Cada teste esta rastreado a um PBI do Azure Boards.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://clyvovet-api-rm562012.mexicocentral.azurecontainer.io:5139"
+    },
+    {
+      "key": "senha",
+      "value": "Senha123"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "tutorId",
+      "value": ""
+    },
+    {
+      "key": "tutorIdDup",
+      "value": ""
+    },
+    {
+      "key": "petId",
+      "value": ""
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "cpf",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Saude da plataforma",
+      "item": [
+        {
+          "name": "AT-01 Health check do banco Oracle (PBI 17)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/health/db",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Oracle saudavel', () => pm.expect(pm.response.json().status).to.eql('Healthy'));",
+                  "pm.test('Tempo de resposta menor que 3s', () => pm.expect(pm.response.responseTime).to.be.below(3000));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Autenticacao e autorizacao JWT",
+      "item": [
+        {
+          "name": "AT-02 Cadastrar tutor com dados validos (PBI 10)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/tutors",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idTutor\": {{tutorId}},\n  \"nome\": \"Carla Mendes\",\n  \"email\": \"{{email}}\",\n  \"telefone\": \"11988887777\",\n  \"cpf\": \"{{cpf}}\",\n  \"senha\": \"{{senha}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const rnd = (n) => Math.floor(Math.random() * n);",
+                  "const dig = (n) => String(rnd(Math.pow(10, n))).padStart(n, '0');",
+                  "pm.collectionVariables.set('tutorId', 100000 + rnd(800000));",
+                  "pm.collectionVariables.set('tutorIdDup', 900000 + rnd(90000));",
+                  "pm.collectionVariables.set('petId', 100000 + rnd(800000));",
+                  "pm.collectionVariables.set('email', 'tutor.' + Date.now() + '@teste.com');",
+                  "pm.collectionVariables.set('cpf', dig(3) + '.' + dig(3) + '.' + dig(3) + '-' + dig(2));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test('Retorna o tutor cadastrado', () => { pm.expect(b.email).to.eql(pm.collectionVariables.get('email')); pm.expect(b.nome).to.eql('Carla Mendes'); });",
+                  "pm.test('Senha nao e devolvida na resposta', () => pm.expect(b).to.not.have.property('senha'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AT-03 Rejeitar cadastro com e-mail duplicado (PBI 10)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/tutors",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idTutor\": {{tutorIdDup}},\n  \"nome\": \"Outra Pessoa\",\n  \"email\": \"{{email}}\",\n  \"telefone\": \"11977776666\",\n  \"cpf\": \"999.888.777-66\",\n  \"senha\": \"{{senha}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AT-04 Login com credenciais validas (PBI 28)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/tutors/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"senha\": \"{{senha}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Retorna e-mail, JWT e expiracao', () => { pm.expect(b.email).to.eql(pm.collectionVariables.get('email')); pm.expect(b.jwt).to.be.a('string').and.not.empty; pm.expect(b.expiresAtUtc).to.exist; });",
+                  "pm.collectionVariables.set('token', b.jwt);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AT-05 Login com senha incorreta (PBI 28)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/tutors/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"senha\": \"SenhaErrada1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AT-06 Acessar rota protegida sem token (PBI 28)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/tutors",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AT-07 Acessar rota protegida com token (PBI 28)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/tutors?Email={{email}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const items = Array.isArray(b) ? b : b.items;",
+                  "pm.test('Lista contem o tutor cadastrado', () => { pm.expect(items).to.be.an('array').that.is.not.empty; pm.expect(items[0].email).to.eql(pm.collectionVariables.get('email')); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 CRUD de pets e listagem paginada",
+      "item": [
+        {
+          "name": "AT-08 Cadastrar pet vinculado ao tutor (PBI 12)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pets",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idPet\": {{petId}},\n  \"idTutor\": {{tutorId}},\n  \"nome\": \"Thor\",\n  \"especie\": \"Cachorro\",\n  \"raca\": \"Labrador\",\n  \"dataNascimento\": \"2021-05-10T00:00:00Z\",\n  \"pesoKg\": 28.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 ou 201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+                  "const b = pm.response.json();",
+                  "pm.test('Retorna o pet cadastrado', () => { pm.expect(b.nome).to.eql('Thor'); pm.expect(b.idTutor).to.eql(Number(pm.collectionVariables.get('tutorId'))); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AT-09 Consultar pet por identificador (PBI 12)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/pets/{{petId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Dados do pet conferem', () => { pm.expect(b.nome).to.eql('Thor'); pm.expect(b.especie).to.eql('Cachorro'); pm.expect(b.pesoKg).to.eql(28.5); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AT-10 Listar pets com paginacao e filtros (PBI 29)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/pets?Deslocamento=0&RegistroRetornado=5&Especie=Cachorro&IdTutor={{tutorId}}&OrdenarPor=nome&Direcao=asc"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('Pagina respeita o tamanho pedido', () => { pm.expect(b.items).to.be.an('array'); pm.expect(b.items.length).to.be.within(1, 5); });",
+                  "pm.test('Retorna total de registros e links HATEOAS', () => { pm.expect(b.totalRegistros).to.be.at.least(1); pm.expect(b.links).to.be.an('array'); });",
+                  "pm.test('Filtro por especie aplicado', () => b.items.forEach(p => pm.expect(p.especie).to.eql('Cachorro')));",
+                  "pm.test('Tempo de resposta menor que 3s', () => pm.expect(pm.response.responseTime).to.be.below(3000));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AT-11 Atualizar dados do pet (PBI 12)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/pets/{{petId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idPet\": {{petId}},\n  \"idTutor\": {{tutorId}},\n  \"nome\": \"Thor Atualizado\",\n  \"especie\": \"Cachorro\",\n  \"raca\": \"Labrador\",\n  \"dataNascimento\": \"2021-05-10T00:00:00Z\",\n  \"pesoKg\": 30.2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 ou 204', () => pm.expect([200, 204]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AT-12 Remover pet (PBI 12)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/pets/{{petId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 ou 204', () => pm.expect([200, 204]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Limpeza dos dados de teste",
+      "item": [
+        {
+          "name": "AT-13 Remover tutor de teste (PBI 10)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/tutors/{{tutorId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 ou 204', () => pm.expect([200, 204]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AT-14 Tutor removido nao e mais encontrado (PBI 10)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/tutors/{{tutorId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

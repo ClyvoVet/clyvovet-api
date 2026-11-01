@@ -750,6 +750,105 @@ ORACLE_ROOT_PASSWORD
 ORACLE_APP_USER
 ORACLE_APP_PASSWORD
 ```
+## CI/CD e infraestrutura em nuvem (Azure DevOps)
+
+A API .NET 8, o banco Oracle e o MongoDB rodam containerizados no **Azure Container Instances (ACI)**. Todo o ciclo, do commit ao ambiente no ar, é executado por uma esteira do **Azure Pipelines** conectada a este repositório, sem intervenção manual.
+
+### Resumo
+
+| Item | Valor |
+|---|---|
+| Projeto Azure DevOps | Sprint 4 – Azure DevOps — `https://dev.azure.com/Challenge-FIAP-2TDSPO/Sprint%204%20%E2%80%93%20Azure%20DevOps` |
+| Pipeline | `azure-pipelines.yaml` (modo YAML, na raiz do repositório) |
+| Gatilho | Push na branch `main` dispara CI e, em seguida, CD |
+| Registro de imagens | Azure Container Registry (ACR) |
+| Execução em nuvem | Azure Container Instances, container group `cg-clyvovet` (containers `db-oracle`, `db-mongo` e `clyvo-api`) |
+| Banco de dados em nuvem | Oracle Free em container no mesmo grupo do ACI |
+| Banco NoSQL | MongoDB (`mongo:7`) em container no mesmo grupo, usado pelo histórico clínico |
+| Região | México Central |
+| Agente da pipeline | Self-hosted (pool `Default`), porque a organização não possui paralelismo hospedado liberado |
+
+### Diagrama da arquitetura e do fluxo CI/CD
+
+![Arquitetura e fluxo CI/CD](docs/arquitetura-cicd.jpeg)
+
+### Etapas da pipeline
+
+**CI — Build, testes e artefato**
+
+1. Instala o .NET 8 SDK
+2. `dotnet restore`
+3. `dotnet build`
+4. Testes automatizados com xUnit (28 unitários e 18 de integração); a pipeline falha se algum teste falhar
+5. `dotnet publish` da API
+6. Publica o artefato `drop` no Azure DevOps
+7. Build da imagem Docker e push para o ACR, com as tags `<BuildId>` e `latest`
+
+**CD — Deploy no ACI**, disparado quando o CI termina com sucesso
+
+1. Obtém as credenciais do ACR em tempo de execução
+2. Gera o manifesto do container group (Oracle, MongoDB e API) com os segredos vindos do Variable Group
+3. Remove o container group anterior (o ACI não atualiza a imagem no lugar)
+4. Cria o container group com os containers `db-oracle` e `clyvo-api`
+5. Valida a aplicação em `GET /api/health/db`, com até 40 tentativas
+
+O container `clyvo-api` espera o Oracle aceitar conexões e abrir o banco antes de iniciar. No ACI todos os containers sobem ao mesmo tempo e não existe `depends_on`. Os três containers dividem a rede do grupo, por isso a API acessa o Oracle em `localhost:1521` e o MongoDB em `localhost:27017`.
+
+### Variáveis e segredos protegidos
+
+Nenhuma credencial está no código ou no YAML. Os valores ficam no **Variable Group** `clyvovet-secrets` (Pipelines → Library), com cada variável marcada como *secret*:
+
+- `ORACLE_ROOT_PASSWORD`
+- `ORACLE_APP_USER`
+- `ORACLE_APP_PASSWORD`
+- `JWT_SECRET` (chave de assinatura do token, entregue à API como `Secretkey`)
+
+O acesso à Azure usa **service connections**, sem senha no repositório:
+
+| Service connection | Tipo | Uso |
+|---|---|---|
+| `sc-acr-clyvovet` | Docker Registry | Push da imagem no ACR |
+| `sc-azure-clyvovet` | Azure Resource Manager | Criação do container group no ACI |
+
+### Recursos na Azure
+
+Resource group `rg-clyvovet-aci`, com o ACR e o ACI. Para consultar o ambiente:
+
+```bash
+az container show -g rg-clyvovet-aci -n cg-clyvovet --query "containers[].{nome:name,estado:instanceView.currentState.state}" -o table
+az container logs -g rg-clyvovet-aci -n cg-clyvovet --container-name clyvo-api
+```
+
+### Como reproduzir
+
+1. Faça uma alteração no código e dê push na branch `main`
+2. Acompanhe a execução em Pipelines → clyvovet-api
+3. Ao final, teste a aplicação:
+
+```bash
+curl http://clyvovet-api-rm562012.mexicocentral.azurecontainer.io:5139/api/health/db
+```
+
+Swagger: `http://clyvovet-api-rm562012.mexicocentral.azurecontainer.io:5139/swagger`
+
+Os endpoints de negócio exigem JWT. No Swagger, cadastre o tutor em `POST /api/tutors`, faça login em `POST /api/tutors/login`, clique em **Authorize** e informe `Bearer {token}`.
+
+### Evidência de persistência no banco
+
+Os testes do CRUD são conferidos com `SELECT` dentro do Oracle:
+
+```bash
+az container exec -g rg-clyvovet-aci -n cg-clyvovet --container-name db-oracle --exec-command "/bin/bash"
+sqlplus $APP_USER/$APP_USER_PASSWORD@localhost:1521/FREEPDB1
+```
+
+```sql
+SELECT ID_TUTOR, NOME, EMAIL FROM TUTOR;
+```
+
+### Observação de operação
+
+O ambiente é criado sob demanda e removido depois dos testes para preservar os créditos da assinatura. A pipeline o recria do zero a cada execução.
 
 ---
 
