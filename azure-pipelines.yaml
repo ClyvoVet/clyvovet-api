@@ -1,8 +1,8 @@
 # ==============================================================================
 # ClyvoVet - Azure Pipelines (CI + CD)
 #   CI: restore, build, testes automaticos, publicacao do artefato e imagem no ACR
-#   CD: recria o container group no ACI e valida /health/db
-# Segredos (usuario/senha do Oracle) ficam no Variable Group "clyvovet-secrets"
+#   CD: recria o container group no ACI e valida /api/health/db
+# Segredos (Oracle e chave JWT) ficam no Variable Group "clyvovet-secrets"
 # ==============================================================================
 
 trigger:
@@ -181,6 +181,14 @@ stages:
                                 }
                             },
                             {
+                                "name": "db-mongo",
+                                "properties": {
+                                    "image": "mongo:7",
+                                    "resources": {"requests": {"cpu": 0.5, "memoryInGB": 1.0}},
+                                    "ports": [{"port": 27017, "protocol": "TCP"}]
+                                }
+                            },
+                            {
                                 "name": "clyvo-api",
                                 "properties": {
                                     "image": e["ACR_SERVER"] + "/" + e["IMAGE_REPO"] + ":" + e["IMAGE_TAG"],
@@ -189,6 +197,8 @@ stages:
                                     "environmentVariables": [
                                         {"name": "ASPNETCORE_ENVIRONMENT", "value": "Production"},
                                         {"name": "ASPNETCORE_URLS", "value": "http://+:5139"},
+                                        {"name": "ConnectionStrings__Mongodb", "value": "mongodb://localhost:27017"},
+                                        {"name": "Secretkey", "secureValue": e["JWT_SECRET"]},
                                         {"name": "ConnectionStrings__OracleDbConnection", "secureValue": conn}
                                     ],
                                     "command": ["bash", "-c", wait_cmd]
@@ -214,9 +224,10 @@ stages:
               ORACLE_ROOT_PASSWORD: $(ORACLE_ROOT_PASSWORD)
               ORACLE_APP_USER: $(ORACLE_APP_USER)
               ORACLE_APP_PASSWORD: $(ORACLE_APP_PASSWORD)
+              JWT_SECRET: $(JWT_SECRET)
 
           - task: AzureCLI@2
-            displayName: Validar saude da aplicacao (/health/db)
+            displayName: Validar saude da aplicacao (/api/health/db)
             inputs:
               azureSubscription: sc-azure-clyvovet
               scriptType: bash
@@ -225,10 +236,10 @@ stages:
                 FQDN=$(az container show -g "$(resourceGroup)" -n "$(containerGroupName)" --query ipAddress.fqdn -o tsv)
                 echo "FQDN: $FQDN"
                 for i in {1..40}; do
-                  code=$(curl -s -o /dev/null -w "%{http_code}" "http://$FQDN:5139/health/db" || true)
+                  code=$(curl -s -o /dev/null -w "%{http_code}" "http://$FQDN:5139/api/health/db" || true)
                   echo "Tentativa $i/40: HTTP $code"
                   if [ "$code" = "200" ]; then
-                    echo "Deploy verificado: Oracle acessivel via /health/db"
+                    echo "Deploy verificado: Oracle acessivel via /api/health/db"
                     exit 0
                   fi
                   sleep 15
