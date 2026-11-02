@@ -80,8 +80,6 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ClyvoVet API - Demo CI/CD", Version = "v1" });
 
     var securitySchema = new OpenApiSecurityScheme
-
-    var securitySchema = new OpenApiSecurityScheme
     {
         Description = "Informe o JWT no formato: Bearer {token}",
         Name = "Authorization",
