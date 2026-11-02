@@ -22,7 +22,7 @@ Compliance, Quality Assurance & Tests - Challenge FIAP 2026
 
 ## Parte A - Testes manuais (Azure Boards)
 
-Os testes estão em **Boards → Work items**. Para listar só eles, filtre pela tag `teste-manual`. Cada teste descreve objetivo, dados de entrada, procedimento (passos) e dados de saída esperados, com dados controlados. Estão ligados ao PBI que validam e seguem o release plan (Sprint 2, 3 e 4).
+Os testes estão em **Boards → Work items**. Para listar só eles, busque por `TC-` no título. Cada teste descreve objetivo, dados de entrada, procedimento (passos) e dados de saída esperados, com dados controlados. Estão ligados ao PBI que validam e seguem o release plan (Sprint 2, 3 e 4).
 
 | Teste | Valida | PBI | Sprint |
 |---|---|---|---|
@@ -39,8 +39,10 @@ Os testes estão em **Boards → Work items**. Para listar só eles, filtre pela
 | TC-11 | Registrar histórico clínico (MongoDB) | 30 | 4 |
 | TC-12 | Verificar saúde da plataforma | 17 | 3 |
 | TC-13 | Deploy automático a cada commit na main | 31 | 4 |
+| TC-14 | Listar os pets do tutor no app | 23 | 4 |
 | TC-15 | Responder dúvida de saúde do pet com a IA | 15 | 4 |
 | TC-16 | Responder dúvida de saúde do pet por voz | 15 | 4 |
+| TC-17 | Cadastrar um pet pelo app | 12 | 4 |
 
 As evidências de persistência são conferidas com `SELECT` no Oracle.
 
