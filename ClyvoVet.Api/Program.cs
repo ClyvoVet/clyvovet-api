@@ -77,7 +77,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.EnableAnnotations();
     c.ExampleFilters();
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "ClyvoVet API - Demo CI/CD", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "ClyvoVet API", Version = "v1" });
 
     var securitySchema = new OpenApiSecurityScheme
     {
