@@ -17,7 +17,7 @@ Compliance, Quality Assurance & Tests - Challenge FIAP 2026
 | Item | Link |
 |---|---|
 | Azure Boards (plano de testes manuais) | https://dev.azure.com/Challenge-FIAP-2TDSPO/Sprint%204%20%E2%80%93%20Azure%20DevOps/_boards |
-| Vídeo da automação de testes | `<COLAR AQUI O LINK DO YOUTUBE>` |
+| Vídeo da automação de testes | `https://www.youtube.com/watch?v=J_4eZKUO8Ow` |
 | Repositório (branch develop) | https://github.com/ClyvoVet/clyvovet-api/tree/develop |
 
 ## Parte A - Testes manuais (Azure Boards)
