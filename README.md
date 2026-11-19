@@ -1,23 +1,23 @@
-# ClyvoVet - API RESTful .NET 8
+# Rota Leve — API RESTful .NET 8
 
 ## Sobre o projeto
 
-O **ClyvoVet** é uma API RESTful desenvolvida em **ASP.NET Core 8** para gerenciamento de tutores, pets, consultas veterinárias, medicações e histórico clínico.
+O **Rota Leve** é uma API RESTful desenvolvida para a **Global Solution CitizenTech 2026/2**, com foco no registro colaborativo e no acompanhamento de barreiras de acessibilidade urbana.
 
-A solução integra os seguintes recursos:
+O backend do **Rota Leve** permite que cidadãos cadastrem relatos sobre localidades, acompanhem ocorrências e confirmem relatos de outras pessoas. Administradores podem gerenciar usuários, localidades e a moderação das ocorrências.
 
-- Clean Architecture e Injeção de Dependência;
-- tratamento global de exceções;
-- API RESTful documentada com Swagger/OpenAPI;
-- paginação, ordenação e filtros;
-- HATEOAS nos endpoints de consulta;
-- autenticação e autorização via JWT;
-- persistência relacional com Oracle e Entity Framework Core;
-- persistência NoSQL com MongoDB;
-- padrão Repository;
-- Health Checks, Serilog, OpenTelemetry e métricas;
-- testes unitários e de integração com xUnit, Moq e padrão AAA;
-- coleta de cobertura de testes com Coverlet.
+A implementação utiliza **ASP.NET Core Web API** com:
+
+- arquitetura em camadas, injeção de dependências e padrão Repository;
+- persistência relacional em Oracle com Entity Framework Core;
+- autenticação JWT e autorização por perfis (`cidadao` e `admin`);
+- validações de entrada e códigos de resposta HTTP;
+- paginação das listagens e documentação interativa Swagger/OpenAPI;
+- idempotência na criação de relatos com `Idempotency-Key`;
+- limitação de requisições (*rate limiting*) e resposta HTTP `429`;
+- Health Checks, logs com Serilog e tratamento global de erros;
+- testes automatizados unitários e de integração com xUnit e Moq.
+
 
 ---
 
@@ -27,824 +27,477 @@ A solução integra os seguintes recursos:
 2. [Modelo de dados](#modelo-de-dados)
 3. [Tecnologias](#tecnologias)
 4. [Autenticação e autorização JWT](#autenticação-e-autorização-jwt)
-5. [Paginação, ordenação, filtros e HATEOAS](#paginação-ordenação-filtros-e-hateoas)
-6. [Persistência Oracle](#persistência-oracle)
-7. [Persistência MongoDB](#persistência-mongodb)
-8. [Tratamento global de exceções](#tratamento-global-de-exceções)
-9. [Endpoints](#endpoints)
-10. [Swagger / OpenAPI](#swagger--openapi)
-11. [Monitoramento e observabilidade](#monitoramento-e-observabilidade)
-12. [Testes automatizados](#testes-automatizados)
-13. [Executando a aplicação localmente](#executando-a-aplicação-localmente)
-14. [Docker](#docker)
-15. [Migrations](#migrations)
-16. [Integrantes](#integrantes)
+5. [Paginação e validações](#paginação-e-validações)
+6. [Idempotência](#idempotência)
+7. [Rate limiting](#rate-limiting)
+8. [Persistência Oracle e migrations](#persistência-oracle-e-migrations)
+9. [Tratamento de erros e códigos HTTP](#tratamento-de-erros-e-códigos-http)
+10. [Endpoints](#endpoints)
+11. [Swagger e OpenAPI](#swagger-e-openapi)
+12. [Monitoramento e logs](#monitoramento-e-logs)
+13. [Testes automatizados](#testes-automatizados)
+14. [Executando a aplicação localmente](#executando-a-aplicação-localmente)
+15. [Docker](#docker)
+16. [Segurança e observações para entrega](#segurança-e-observações-para-entrega)
+17. [Integrantes](#integrantes)
 
 ---
 
 ## Arquitetura
 
-O projeto está organizado em camadas, mantendo as responsabilidades separadas.
+O projeto mantém as responsabilidades separadas. A camada HTTP utiliza **ASP.NET Core Web API com Controllers**: endpoints implementados em `Presentation/Controllers`, com `[ApiController]`, atributos HTTP e documentação Swagger.
 
 ```text
-ClyvoVet/
-├── ClyvoVet.Api/
+RotaLeve/
+├── RotaLeve.Api/
 │   ├── Presentation/
 │   │   └── Controllers/
 │   ├── Application/
 │   │   ├── Dtos/
-│   │   ├── Helpers/
-│   │   ├── Interfaces/
-│   │   ├── Mappers/
-│   │   └── UseCases/
+│   │   └── Services/
 │   ├── Domain/
-│   │   ├── Entities/
-│   │   ├── Errors/
-│   │   ├── Interfaces/
-│   │   └── Models/
+│   │   └── Entities/
 │   ├── Infrastructure/
 │   │   ├── Data/
-│   │   │   ├── Migrations/
-│   │   │   └── Repositories/
-│   │   ├── Errors/
-│   │   ├── IoC/
-│   │   ├── Observability/
+│   │   │   └── Migrations/
 │   │   └── Security/
+│   ├── Properties/
+│   ├── appsettings.json
 │   ├── Dockerfile
-│   ├── docker-compose.yml
 │   └── Program.cs
-├── ClyvoVet.Tests.Unit/
-│   ├── Application/
-│   ├── Domain/
-│   └── Infrastructure/
-├── ClyvoVet.Tests.Integration/
-│   ├── Controllers/
-│   ├── Fixtures/
-│   └── HealthChecks/
-├── ClyvoVet.slnx
+├── RotaLeve.Tests.Unit/
+│   └── Configuration/JwtTestConfiguration.cs
+├── RotaLeve.Tests.Integration/
+│   └── Configuration/JwtTestConfiguration.cs
+├── scripts/
+│   └── script-bd.sql
+├── RotaLeve.sln
 └── README.md
 ```
 
-### Diagrama da solução
+**Responsabilidades das camadas:**
 
-<img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/e13562d7-0b0b-4b66-9f70-23e89b1860f9" />
+- **Presentation:** recebe requisições HTTP, aplica autenticação, autorização, metadados Swagger e traduz resultados dos serviços em respostas HTTP.
+- **Application:** implementa casos de uso, DTOs, validações de negócio, paginação e idempotência.
+- **Domain:** define as entidades e os conceitos centrais do domínio.
+- **Infrastructure:** implementa repositórios, acesso ao Oracle, EF Core, segurança e integração com serviços de infraestrutura.
 
-
-### Responsabilidade de cada camada
-
-- **Presentation:** expõe os endpoints HTTP e traduz o resultado da aplicação em respostas HTTP.
-- **Application:** contém os casos de uso, DTOs, mapeamentos, paginação e construção de HATEOAS.
-- **Domain:** contém entidades, contratos de repositories, `OperationResult<T>` e erros do domínio.
-- **Infrastructure:** implementa persistência Oracle/MongoDB, segurança JWT, observabilidade e DI.
-
-A configuração das dependências fica centralizada em:
-
-```text
-ClyvoVet.Api/Infrastructure/IoC/Bootstrap.cs
-```
+A API registra os Controllers com `AddControllers()` e `MapControllers()` no `Program.cs`, mantendo as rotas RESTful organizadas por recurso.
 
 ---
 
 ## Modelo de dados
 
-### Oracle - modelo relacional
+O backend utiliza um modelo relacional no **Oracle**, composto pelas seguintes entidades:
 
 ```text
-TUTOR
-  └── 1:N PET
-          ├── 1:N CONSULTA
-          └── 1:N MEDICACAO
+USUARIO
+  ├── 1:N RELATO ──────────────── N:1 LOCALIDADE
+  └── 1:N CONFIRMACAO_RELATO ── N:1 RELATO
 ```
 
-Tabelas relacionais:
+| Entidade | Responsabilidade |
+|---|---|
+| `USUARIO` | Conta, credenciais protegidas e perfil de acesso |
+| `LOCALIDADE` | Local cadastrado onde podem ocorrer problemas de acessibilidade |
+| `RELATO` | Ocorrência registrada, situação e referência à localidade e ao autor |
+| `CONFIRMACAO_RELATO` | Confirmação comunitária vinculada ao relato e ao usuário |
 
-- `TUTOR`
-- `PET`
-- `CONSULTA`
-- `MEDICACAO`
+A localidade não representa necessariamente um problema: ela existe independentemente de possuir relatos. O campo `ATIVO` da localidade controla sua disponibilização nas consultas.
 
-A entidade `Tutor` continua sendo a identidade utilizada para cadastro e login. Não existe uma tabela separada `User` no modelo atual.
+**Regras relevantes:**
 
-### MongoDB - modelo NoSQL
-
-O MongoDB é utilizado para documentos de **histórico clínico**:
-
-```text
-historico_clinico
-├── Id (ObjectId)
-├── IdPet
-├── DataRegistro
-├── Tipo
-├── Descricao
-└── Tags[]
-```
-
-O histórico clínico foi mantido em NoSQL para demonstrar armazenamento de documentos flexíveis sem alterar o modelo relacional principal.
+- Um cidadão não pode confirmar o próprio relato nem confirmar o mesmo relato duas vezes.
+- A primeira confirmação pode alterar o relato de `Novo` para `Ativo`.
+- Relatos `Resolvido` ou `Expirado` não aceitam novas confirmações.
+- Relatos `Novo`/`Ativo` podem expirar após 72 horas sem nova confirmação, conforme as regras da aplicação.
+- O cidadão pode alterar/excluir o próprio relato enquanto estiver `Novo`; o administrador possui permissões adicionais.
+- A exclusão de **usuário é física e transacional**, removendo também registros dependentes; a exclusão de **localidade é lógica** (`ATIVO = 0`).
 
 ---
 
 ## Tecnologias
 
-### Backend
+| Categoria | Tecnologias e recursos |
+|---|---|
+| Linguagem e runtime | C#, .NET 8 |
+| API HTTP | ASP.NET Core Web API com Controllers |
+| Banco de dados | Oracle Database |
+| Persistência | Entity Framework Core 8 e Oracle.EntityFrameworkCore |
+| Segurança | ASP.NET Core Authentication/Authorization, JWT Bearer, hash de senha PBKDF2 |
+| Documentação | Swagger UI, OpenAPI, Swashbuckle |
+| Resiliência e segurança HTTP | ASP.NET Core Rate Limiting; header `Idempotency-Key` |
+| Observabilidade | Serilog, Correlation ID, Health Checks |
+| Testes | xUnit, Moq, WebApplicationFactory, testes AAA |
 
-- C#
-- .NET 8
-- ASP.NET Core Web API
-- Entity Framework Core 8
-
-### Persistência
-
-- Oracle Database
-- Oracle.EntityFrameworkCore
-- MongoDB
-- MongoDB.EntityFrameworkCore
-- MongoDB.Bson
-
-### Segurança
-
-- Microsoft.AspNetCore.Authentication.JwtBearer
-- JWT Bearer Token
-- `[Authorize]` e `[AllowAnonymous]`
-
-### Observabilidade
-
-- Microsoft Health Checks
-- AspNetCore.HealthChecks.Oracle
-- Serilog
-- OpenTelemetry
-- System.Diagnostics.Metrics
-
-### Documentação
-
-- Swagger / OpenAPI
-- Swashbuckle.AspNetCore
-- Swagger Annotations
-
-### Testes
-
-- xUnit
-- Moq
-- WebApplicationFactory
-- EF Core InMemory
-- Coverlet Collector
 
 ---
 
 ## Autenticação e autorização JWT
 
-A autenticação utiliza **JWT Bearer Token** para identificar o tutor e autorizar o acesso aos endpoints protegidos.
-
-### Cadastro público
+**Cadastro público:**
 
 ```http
-POST /api/tutors
+POST /api/usuarios
+Content-Type: application/json
 ```
 
-Exemplo:
+Exemplo de corpo:
 
 ```json
 {
-  "idTutor": 1,
-  "nome": "Tutor Teste",
-  "email": "tutor@teste.com",
-  "telefone": "11999999999",
-  "cpf": "123.456.789-00",
-  "senha": "123456"
+  "nome": "Usuário Exemplo",
+  "email": "usuario@example.com",
+  "senha": "Senha@123",
+  "perfil": "cidadao"
 }
 ```
 
-### Login público
+O perfil padrão é `cidadao`. O cadastro aceita `admin` para **demonstração acadêmica**; em produção, a atribuição do perfil administrativo deve ser restrita.
+
+**Login público:**
 
 ```http
-POST /api/tutors/login
+POST /api/auth/login
+Content-Type: application/json
 ```
 
 ```json
 {
-  "email": "tutor@teste.com",
-  "senha": "123456"
+  "email": "usuario@example.com",
+  "senha": "Senha@123"
 }
 ```
 
-Resposta:
+Depois de autenticar, use o valor `accessToken` retornado no cabeçalho:
+
+```http
+Authorization: Bearer SEU_TOKEN_JWT
+```
+
+A autorização HTTP é implementada por `[Authorize]` e `[AllowAnonymous]`. O perfil `admin` também pode executar as ações destinadas a `cidadao`. Usuários sem JWT válido recebem `401 Unauthorized`; usuários autenticados sem permissão recebem `403 Forbidden`.
+
+### Configuração segura da chave JWT
+
+A aplicação lê a configuração **`Secretkey` diretamente na raiz** da configuração .NET, e não em `Jwt:SecretKey`:
 
 ```json
 {
-  "email": "tutor@teste.com",
-  "jwt": "eyJhbGciOiJIUzI1NiIs...",
-  "expiresAtUtc": "2026-10-23T04:00:00Z"
+  "Secretkey": ""
 }
 ```
 
-O token possui claims de:
+**Preencha uma chave JWT forte antes de iniciar a API**, no `RotaLeve.Api/appsettings.json`, em User Secrets ou pela variável de ambiente `Secretkey`. O arquivo distribuído não inclui uma chave real. Se estiver ausente ou vazia, a API interrompe sua inicialização com uma mensagem de configuração, em vez de falhar somente no login.
 
-- identificador do tutor;
-- e-mail;
-- nome de autenticação;
-- role `tutor`;
-- expiração.
-
-Os endpoints de negócio utilizam `[Authorize(Roles = "tutor")]`, demonstrando autorização baseada em role. Cadastro e login utilizam `[AllowAnonymous]`.
-
-### Configuração JWT
-
-Em `appsettings.Development.json`:
-
-```json
-"Secretkey": "SUA_CHAVE_JWT_SEGURA"
-```
-
-A chave é lida diretamente por `builder.Configuration["Secretkey"]`. A validade do token é de 8 horas e fica definida no código. Em ambientes compartilhados ou de produção, a chave deve ser fornecida por configuração segura, como variável de ambiente:
-
-```text
-Secretkey
-```
+> Para executar apenas os testes, as classes `Configuration/JwtTestConfiguration.cs` dos projetos de teste utilizam uma chave fictícia **exclusiva para testes** quando `Secretkey` não está configurada. Esse fallback **não** está disponível na execução normal da API.
 
 ---
 
-## Paginação, ordenação, filtros e HATEOAS
+## Paginação e validações
 
-Os principais endpoints `GET` de coleção utilizam paginação por deslocamento.
+As listagens utilizam paginação no banco de dados, com ordenação e retorno de metadados:
 
-Parâmetros comuns:
+- `GET /api/usuarios` (administrador);
+- `GET /api/localidades`;
+- `GET /api/relatos`.
 
-| Parâmetro | Descrição | Padrão |
-|---|---|---:|
-| `deslocamento` | quantidade de registros ignorados | `0` |
-| `registroRetornado` | quantidade máxima de registros | `10` |
-| `ordenarPor` | propriedade utilizada na ordenação | ID do recurso |
-| `direcao` | `asc` ou `desc` | `asc` |
+| Parâmetro query | Valor padrão | Valores aceitos |
+|---|---:|---|
+| `pagina` | `1` | De `1` até `1000000` |
+| `tamanhoPagina` | `10` | De `1` até `100` |
 
 Exemplo:
 
 ```http
-GET /api/pets?deslocamento=0&registroRetornado=10&especie=Cachorro&ordenarPor=nome&direcao=asc
-Authorization: Bearer {token}
+GET /api/localidades?pagina=2&tamanhoPagina=5
+Authorization: Bearer SEU_TOKEN_JWT
 ```
 
-Resposta paginada:
+Resposta ilustrativa quando há registros (`200 OK`):
 
 ```json
 {
-  "items": [
-    {
-      "idPet": 1,
-      "idTutor": 1,
-      "nome": "Thor",
-      "especie": "Cachorro",
-      "links": [
-        { "href": "/api/pets/1", "rel": "self", "method": "GET" },
-        { "href": "/api/pets/1", "rel": "update", "method": "PUT" },
-        { "href": "/api/pets/1", "rel": "delete", "method": "DELETE" }
-      ]
-    }
-  ],
-  "deslocamento": 0,
-  "registroRetornado": 10,
-  "totalRegistros": 1,
-  "links": [
-    { "href": "/api/pets?...", "rel": "self", "method": "GET" },
-    { "href": "/api/pets", "rel": "create", "method": "POST" }
-  ]
+  "pagina": 2,
+  "tamanhoPagina": 5,
+  "totalRegistros": 12,
+  "totalPaginas": 3,
+  "dados": [{ "idLocalidade": 12, "nome": "Praça Central" }]
 }
 ```
 
-### Filtros disponíveis
+Quando a página solicitada não possui registros, a API responde **`204 No Content`**, sem corpo. Parâmetros inválidos retornam `400 Bad Request`.
 
-**Tutores**
-
-- `nome`
-- `email`
-
-**Pets**
-
-- `nome`
-- `especie`
-- `idTutor`
-
-**Consultas**
-
-- `idPet`
-- `veterinario`
-- `dataInicio`
-- `dataFim`
-
-**Medicações**
-
-- `idPet`
-- `nome`
-
-**Histórico clínico (MongoDB)**
-
-- `idPet`
-- `tipo`
+Os DTOs usam Data Annotations e o comportamento de validação do `[ApiController]`, complementados pelas validações dos serviços. A validação também contempla regras de domínio e valores permitidos para tipos e status.
 
 ---
 
-## Persistência Oracle
+## Idempotência
 
-O `ApplicationContext` utiliza Entity Framework Core com Oracle.
+A criação de relatos exige o cabeçalho **`Idempotency-Key`**:
 
-Repositories concretos:
-
-```text
-TutorRepository
-PetRepository
-ConsultaRepository
-MedicacaoRepository
+```http
+POST /api/relatos
+Authorization: Bearer SEU_TOKEN_JWT
+Idempotency-Key: relato-exemplo-001
+Content-Type: application/json
 ```
 
-O padrão Repository mantém o acesso a dados fora dos Controllers e UseCases.
+A implementação calcula:
 
-A migration atual é uma `InitialCreate` limpa contendo somente as tabelas atuais do projeto.
+1. Um SHA-256 do identificador do usuário autenticado combinado com a chave recebida, persistido em `RELATO.CHAVE_IDEMPOTENCIA`.
+2. Um SHA-256 do conteúdo normalizado da requisição, persistido em `RELATO.HASH_REQUISICAO`.
+
+O índice único no Oracle impede duplicações concorrentes. O comportamento esperado é:
+
+| Situação | Retorno |
+|---|---|
+| Primeira criação com a chave | `201 Created` |
+| Mesmo usuário, chave e conteúdo | `200 OK` com o relato existente |
+| Mesma chave, conteúdo divergente | `409 Conflict` |
+| Chave ausente ou inválida | `400 Bad Request` |
+
+A chave é vinculada ao usuário. Esse mecanismo é diferente da regra que impede um cidadão de confirmar o mesmo relato duas vezes.
 
 ---
 
-## Persistência MongoDB
+## Rate limiting
 
-O contexto NoSQL está em:
+A API limita requisições para reduzir abuso e spam:
 
-```text
-Infrastructure/Data/MongoApplicationContext.cs
-```
+| Operação | Limite | Critério de agrupamento |
+|---|---|---|
+| Três listagens `GET` | 5 chamadas por 20 segundos, compartilhadas | IP |
+| `POST /api/relatos` | 5 chamadas por 10 minutos | Usuário autenticado; fallback por IP |
+| `POST /api/relatos/{id}/confirmacoes` | 20 chamadas por minuto | Usuário autenticado; fallback por IP |
 
-Repository:
-
-```text
-HistoricoClinicoRepository
-```
-
-Caso de uso:
-
-```text
-HistoricoClinicoUseCase
-```
-
-Controller:
-
-```text
-HistoricosClinicosController
-```
-
-Configuração padrão:
-
-```json
-"ConnectionStrings": {
-  "Mongodb": "mongodb://localhost:27017"
-}
-```
-
-O nome do banco MongoDB é definido no `Bootstrap.cs` como `ClyvoVet`.
-
-A coleção é criada/utilizada pelo MongoDB quando os documentos são persistidos.
+Quando o limite é excedido, a aplicação retorna **`429 Too Many Requests`**.
 
 ---
 
-## Tratamento global de exceções
+## Persistência Oracle e migrations
 
-A API utiliza um `IExceptionHandler` global:
+A configuração de acesso ao Oracle fica em:
 
 ```text
-Infrastructure/Errors/GlobalExceptionHandler.cs
+RotaLeve.Api/appsettings.json
+ConnectionStrings:OracleDbConnection
 ```
 
-O tratamento centralizado padroniza erros inesperados e devolve respostas no formato `ProblemDetails`.
+O modelo fornecido usa o Oracle da FIAP, com usuário e senha **em branco** para preenchimento local. É necessário informar `User Id` e `Password` válidos. Como alternativa, pode-se utilizar a variável de ambiente `ConnectionStrings__OracleDbConnection`.
 
-Mapeamentos principais:
+O Entity Framework Core contém as migrations na pasta `RotaLeve.Api/Infrastructure/Data/Migrations`. A aplicação inicia um serviço de execução de migrations em segundo plano: isso permite abrir o Swagger e consultar `/health/live` enquanto a conexão Oracle é verificada. A criação e o acesso aos dados dependem de o banco estar disponível.
 
-| Exceção | HTTP |
-|---|---:|
-| recurso não encontrado | `404` |
-| argumento/formato inválido | `400` |
-| conflito de persistência EF Core | `409` |
-| erro não tratado | `500` |
+- O serviço de migrations tenta conectar-se novamente em caso de indisponibilidade temporária.
+- Em execução com ambiente `Testing`, as migrations automáticas são ignoradas.
+- O arquivo `scripts/script-bd.sql` é uma **referência do esquema**, não um script que deve ser executado em paralelo à criação automática por migrations.
+- A migration de idempotência acrescenta `CHAVE_IDEMPOTENCIA` e `HASH_REQUISICAO` à tabela `RELATO`.
 
-As Controllers não precisam repetir blocos `try/catch` genéricos em todos os métodos.
+Para criar uma migration futura, a partir da raiz do projeto:
 
-Além disso, a camada Application utiliza `OperationResult<T>` para padronizar fluxos esperados de sucesso e falha.
+```bash
+dotnet ef migrations add NomeDaMigration --project RotaLeve.Api --startup-project RotaLeve.Api --output-dir Infrastructure/Data/Migrations
+```
+
+> Em bancos Oracle já utilizados ou alterados manualmente, confira o histórico `__EFMigrationsHistory` e os relacionamentos antes de aplicar mudanças. Não misture a execução manual de `script-bd.sql` com a criação automática das mesmas tabelas.
+
+---
+
+## Tratamento de erros e códigos HTTP
+
+O tratamento centralizado de exceções e as validações de negócio padronizam respostas. Os principais códigos utilizados são:
+
+| HTTP | Significado no projeto |
+|---|---|
+| `200 OK` | Consulta bem-sucedida, alteração, exclusão ou repetição idempotente |
+| `201 Created` | Novo registro criado |
+| `204 No Content` | Listagem sem registros na página solicitada |
+| `400 Bad Request` | Dados, parâmetros ou chave de idempotência inválidos |
+| `401 Unauthorized` | JWT ausente, inválido ou expirado |
+| `403 Forbidden` | Usuário sem permissão para a operação |
+| `404 Not Found` | Recurso inexistente |
+| `409 Conflict` | Conflito de regra de negócio ou chave de idempotência |
+| `429 Too Many Requests` | Rate limit excedido |
+| `500 Internal Server Error` | Falha interna não tratada |
+| `503 Service Unavailable` | Readiness indisponível, incluindo ausência de conexão Oracle |
+
+As operações `DELETE` bem-sucedidas retornam **`200 OK` com JSON de confirmação**. A desativação de localidades é lógica; a exclusão de usuários é definitiva.
 
 ---
 
 ## Endpoints
 
-> Endpoints protegidos exigem `Authorization: Bearer {token}`.
+As rotas de negócio exigem JWT, exceto onde indicado como **público**.
 
-### Tutores
+### Autenticação
 
-| Método | Endpoint | Autorização | Função |
+| Método | Rota | Permissão | Ação |
 |---|---|---|---|
-| POST | `/api/tutors` | público | cadastrar tutor |
-| POST | `/api/tutors/login` | público | autenticar e gerar JWT |
-| GET | `/api/tutors` | JWT | paginação, filtros e HATEOAS |
-| GET | `/api/tutors/{id}` | JWT | consultar tutor |
-| PUT | `/api/tutors/{id}` | JWT | atualizar tutor |
-| DELETE | `/api/tutors/{id}` | JWT | excluir tutor |
+| POST | `/api/auth/login` | Público | Login e emissão do JWT |
 
-### Pets
+### Usuários
 
-| Método | Endpoint | Função |
-|---|---|---|
-| GET | `/api/pets` | paginação, ordenação, filtros e HATEOAS |
-| GET | `/api/pets/{id}` | obter pet |
-| GET | `/api/pets/tutor/{idTutor}` | filtrar por tutor |
-| GET | `/api/pets/especie/{especie}` | filtrar por espécie |
-| POST | `/api/pets` | cadastrar |
-| PUT | `/api/pets/{id}` | atualizar |
-| DELETE | `/api/pets/{id}` | excluir |
+| Método | Rota | Permissão | Ação |
+|---|---|---|---|
+| GET | `/api/usuarios` | Admin | Listar usuários com paginação |
+| GET | `/api/usuarios/{id}` | Admin | Consultar usuário |
+| POST | `/api/usuarios` | Público | Cadastrar usuário |
+| PUT | `/api/usuarios/{id}` | Admin | Atualizar usuário |
+| DELETE | `/api/usuarios/{id}` | Admin | Excluir usuário fisicamente e seus vínculos dependentes |
 
-### Consultas
+### Localidades
 
-| Método | Endpoint | Função |
-|---|---|---|
-| GET | `/api/consultas` | paginação, ordenação, filtros e HATEOAS |
-| GET | `/api/consultas/{id}` | obter consulta |
-| GET | `/api/consultas/pet/{idPet}` | consultar por pet |
-| POST | `/api/consultas` | cadastrar |
-| PUT | `/api/consultas/{id}` | atualizar |
-| DELETE | `/api/consultas/{id}` | excluir |
+| Método | Rota | Permissão | Ação |
+|---|---|---|---|
+| GET | `/api/localidades` | Cidadão/Admin | Listar localidades ativas com paginação |
+| GET | `/api/localidades/{id}` | Cidadão/Admin | Consultar localidade |
+| POST | `/api/localidades` | Admin | Cadastrar localidade |
+| PUT | `/api/localidades/{id}` | Admin | Atualizar localidade |
+| DELETE | `/api/localidades/{id}` | Admin | Desativar localidade (exclusão lógica) |
 
-### Medicações
+### Relatos e confirmações
 
-| Método | Endpoint | Função |
-|---|---|---|
-| GET | `/api/medicacoes` | paginação, ordenação, filtros e HATEOAS |
-| GET | `/api/medicacoes/{id}` | obter medicação |
-| GET | `/api/medicacoes/pet/{idPet}` | consultar por pet |
-| POST | `/api/medicacoes` | cadastrar |
-| PUT | `/api/medicacoes/{id}` | atualizar |
-| DELETE | `/api/medicacoes/{id}` | excluir |
+| Método | Rota | Permissão | Ação |
+|---|---|---|---|
+| GET | `/api/relatos` | Cidadão/Admin | Listar relatos com paginação |
+| GET | `/api/relatos/{id}` | Cidadão/Admin | Consultar relato |
+| POST | `/api/relatos` | Cidadão/Admin | Criar relato com idempotência |
+| PUT | `/api/relatos/{id}` | Autor elegível/Admin | Atualizar relato |
+| DELETE | `/api/relatos/{id}` | Autor elegível/Admin | Excluir relato |
+| POST | `/api/relatos/{id}/confirmacoes` | Cidadão/Admin | Confirmar relato de outra pessoa |
+| DELETE | `/api/relatos/{id}/confirmacoes/minha` | Cidadão/Admin | Remover a própria confirmação |
+| PATCH | `/api/relatos/{id}/status` | Admin | Alterar o status do relato |
 
-### Histórico clínico - MongoDB
+### Saúde da aplicação
 
-| Método | Endpoint | Função |
-|---|---|---|
-| GET | `/api/historicos-clinicos` | paginação, filtros e HATEOAS |
-| GET | `/api/historicos-clinicos/{id}` | obter documento MongoDB |
-| POST | `/api/historicos-clinicos` | cadastrar documento |
-| PUT | `/api/historicos-clinicos/{id}` | atualizar documento |
-| DELETE | `/api/historicos-clinicos/{id}` | excluir documento |
+| Método | Rota | Permissão | Ação |
+|---|---|---|---|
+| GET | `/health/live` | Público | Verificar se a API está ativa |
+| GET | `/health/ready` | Público | Verificar prontidão e conexão Oracle |
 
-### Monitoramento
-
-| Método | Endpoint | Função |
-|---|---|---|
-| GET | `/api/health/live` | liveness da API |
-| GET | `/api/health/db` | conectividade Oracle |
-| GET | `/metrics` | métricas consolidadas |
+**Total: 21 endpoints HTTP**, implementados com Controllers e atributos de roteamento como `[Route]`, `[HttpGet]`, `[HttpPost]`, `[HttpPut]`, `[HttpPatch]` e `[HttpDelete]`.
 
 ---
 
-## Swagger / OpenAPI
+## Swagger e OpenAPI
 
-Com a aplicação em execução:
+O Swagger UI oferece documentação interativa e permite executar requisições HTTP e visualizar parâmetros, esquemas e códigos de resposta.
+
+- **Interface:** `http://localhost:5139/swagger` (perfil HTTP local).
+- **JSON OpenAPI:** `http://localhost:5139/swagger/v1/swagger.json`.
+- **JWT:** clique em **Authorize**, informe o token retornado pelo login e teste os endpoints protegidos.
+- **Parâmetros interativos:** `pagina`, `tamanhoPagina` e `Idempotency-Key` aparecem nos endpoints pertinentes.
+
+A documentação é declarada com atributos Swagger/OpenAPI nas actions dos Controllers.
+
+Para um teste rápido: cadastre um usuário, faça login, autorize-se e consulte uma das listagens. O primeiro acesso pode retornar `204` caso o banco não tenha registros naquele recurso.
+
+---
+
+## Monitoramento e logs
+
+A API utiliza **Serilog** para registrar requisições, exceções e diagnósticos em console e em arquivos com rotação diária:
 
 ```text
-http://localhost:5139/swagger
+logs/api-YYYYMMDD.log
 ```
 
-O Swagger possui esquema **Bearer JWT**.
+Os logs incluem identificadores de correlação (`X-Correlation-ID` quando enviado, ou um valor gerado) e de rastreamento (`TraceId`). A retenção configurada é de sete arquivos de log.
 
-Fluxo recomendado:
+Health Checks públicos:
 
-1. execute `POST /api/tutors` para cadastrar um tutor;
-2. execute `POST /api/tutors/login`;
-3. copie o valor `jwt`;
-4. clique em **Authorize** no Swagger;
-5. informe `Bearer {token}`;
-6. teste os endpoints protegidos.
-
----
-
-## Monitoramento e observabilidade
-
-### Health Checks
-
-```http
-GET /api/health/live
-GET /api/health/db
-```
-
-`live` verifica o processo da API e `db` verifica a conexão Oracle.
-
-### Logging estruturado
-
-Serilog registra em:
-
-- console;
-- `logs/api-AAAA-MM-DD.log`;
-- níveis Information, Warning e Error;
-- `CorrelationId`;
-- `TraceId`.
-
-### OpenTelemetry
-
-Tracing configurado para:
-
-- ASP.NET Core;
-- HttpClient;
-- `ClyvoVet.Application`;
-- `ClyvoVet.Infrastructure`.
-
-### Métricas
-
-O middleware mede:
-
-- quantidade total de requisições;
-- quantidade total de erros;
-- taxa de erros;
-- tempo médio de resposta.
-
-Endpoint:
-
-```http
-GET /metrics
-```
+- `GET /health/live`: confirma a execução do processo HTTP.
+- `GET /health/ready`: verifica também o Oracle; pode responder `503` quando o banco estiver indisponível, mesmo se a interface Swagger estiver acessível.
 
 ---
 
 ## Testes automatizados
 
-Os testes são separados em:
+Os projetos `RotaLeve.Tests.Unit` e `RotaLeve.Tests.Integration` utilizam **xUnit**, **Moq** e o padrão **AAA (Arrange, Act, Assert)**. Os testes HTTP utilizam `WebApplicationFactory<Program>` e autenticação de teste para verificar autenticação, autorização, respostas e comportamentos da API.
 
-```text
-ClyvoVet.Tests.Unit/
-ClyvoVet.Tests.Integration/
+Há testes para regras de usuários, localidades, relatos, confirmações, emissão e validação de JWT, paginação, limite de requisições e Health Checks. Os testes de integração verificam os contratos HTTP dos Controllers.
+
+**Chave JWT nos testes:** `RotaLeve.Tests.Unit/Configuration/JwtTestConfiguration.cs` e `RotaLeve.Tests.Integration/Configuration/JwtTestConfiguration.cs` leem `Secretkey` da configuração da API e aceitam a variável de ambiente correspondente. Na ausência de chave, utilizam um valor fictício exclusivo dos testes; a aplicação real não possui esse fallback.
+
+Para executar a suíte:
+
+```bash
+dotnet restore RotaLeve.sln
+dotnet build RotaLeve.sln --no-restore
+dotnet test RotaLeve.sln --no-build
 ```
 
-São utilizados:
-
-- xUnit;
-- Moq;
-- padrão AAA (`Arrange`, `Act`, `Assert`);
-- WebApplicationFactory;
-- Fixtures e Collection Fixtures;
-- EF Core InMemory;
-- autenticação de teste para endpoints protegidos;
-- testes para JWT, HATEOAS, regras da camada Application e integração dos endpoints.
-
-### Executar todos os testes
-
-Na raiz:
-
-```powershell
-dotnet test .\ClyvoVet.Tests.Unit\ClyvoVet.Tests.Unit.csproj
-dotnet test .\ClyvoVet.Tests.Integration\ClyvoVet.Tests.Integration.csproj
-```
-
-### Cobertura
-
-O projeto mantém `coverlet.collector` para coleta de cobertura:
-
-```powershell
-dotnet test .\ClyvoVet.Tests.Unit\ClyvoVet.Tests.Unit.csproj --collect:"XPlat Code Coverage"
-dotnet test .\ClyvoVet.Tests.Integration\ClyvoVet.Tests.Integration.csproj --collect:"XPlat Code Coverage"
-```
-
-Os testes também podem ser executados através do `Test Explorer` do Visual Studio.
-
-Os resultados são gerados dentro de `TestResults`.
+Se houver artefatos antigos do EF Core, faça `dotnet clean RotaLeve.sln`, restaure os pacotes e execute novamente os testes.
 
 ---
 
 ## Executando a aplicação localmente
 
-### 1. Pré-requisitos
+### Pré-requisitos
 
-Instale:
+- .NET SDK 8 instalado;
+- acesso ao Oracle e usuário com permissões adequadas;
+- Visual Studio ou terminal com o comando `dotnet`;
+- credenciais Oracle e chave JWT de assinatura, configuradas localmente.
 
-- .NET SDK 8;
-- Oracle Database acessível;
-- MongoDB acessível (local, Docker ou Atlas);
-- `dotnet-ef` caso precise manipular migrations.
+### Configuração inicial
 
-### 2. Configurar credenciais Oracle
+**1. Configure o Oracle** em `RotaLeve.Api/appsettings.json`, preenchendo `User Id` e `Password` em `ConnectionStrings:OracleDbConnection`. Ajuste host, porta e identificador do banco se utilizar outra instância.
 
-Edite:
+**2. Configure a chave JWT** na propriedade raiz `Secretkey`. Sem essa configuração, a aplicação interrompe a inicialização com mensagem explicativa.
 
-```text
-ClyvoVet.Api/appsettings.Development.json
+**3. Restaure e execute** a partir da pasta que contém `RotaLeve.sln`:
+
+```bash
+dotnet restore RotaLeve.sln
+dotnet run --project RotaLeve.Api
 ```
 
-O arquivo mantém a estrutura da connection string, porém **sem credenciais Oracle**:
+**4. Acesse** `http://localhost:5139/swagger`, utilizando o perfil HTTP local informado em `launchSettings.json`. O banco pode continuar indisponível durante tentativas de migrations em segundo plano, mas operações de persistência exigem Oracle acessível.
 
-```json
-"OracleDbConnection": "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=oracle.fiap.com.br)(PORT=1521))) (CONNECT_DATA=(SERVER=DEDICATED)(SID=ORCL)));User Id=;Password=;"
-```
+**5. Teste o fluxo**: cadastre usuário (`POST /api/usuarios`), autentique (`POST /api/auth/login`), use **Authorize** e execute endpoints com JWT.
 
-Preencha `User Id` e `Password` com as credenciais do banco que será utilizado:
-
-```text
-User Id=SEU_USUARIO;Password=SUA_SENHA;
-```
-
-Recomenda-se utilizar um usuário/schema Oracle exclusivo ou vazio para o ClyvoVet, evitando conflito com tabelas preexistentes que não estejam registradas no `__EFMigrationsHistory`.
-
-### 3. Configurar MongoDB
-
-O padrão local é:
-
-```json
-"Mongodb": "mongodb://localhost:27017"
-```
-
-Se utilizar MongoDB Atlas ou outro servidor, substitua pela connection string correspondente.
-
-### 4. Configurar a chave JWT
-
-Configure uma chave JWT adequada ao ambiente:
-
-```json
-"Secretkey": "SUA_CHAVE_SEGURA"
-```
-
-ou utilize a variável de ambiente:
+### Variáveis de ambiente (alternativa aos arquivos)
 
 ```text
 Secretkey
+ConnectionStrings__OracleDbConnection
 ```
 
-### 5. Restaurar dependências
-
-Na raiz do repositório:
-
-```powershell
-dotnet restore .\ClyvoVet.Api\ClyvoVet.Api.csproj
-```
-
-### 6. Executar
-
-```powershell
-dotnet run --project .\ClyvoVet.Api\ClyvoVet.Api.csproj
-```
-
-A aplicação aplica as migrations Oracle pendentes durante a inicialização, exceto no ambiente `Testing`.
-
-### 7. Validar
-
-```text
-Swagger:       http://localhost:5139/swagger
-Health API:    http://localhost:5139/api/health/live
-Health Oracle: http://localhost:5139/api/health/db
-Metrics:       http://localhost:5139/metrics
-```
+Não inclua segredos reais no repositório nem em capturas de tela da entrega.
 
 ---
 
 ## Docker
 
-O `docker-compose.yml` contém:
+A pasta `RotaLeve.Api` contém um `Dockerfile` para empacotamento da API. A imagem da aplicação **não substitui o banco Oracle**: a configuração da conexão precisa apontar para uma instância acessível a partir do contêiner.
 
-- Oracle;
-- MongoDB;
-- API ClyvoVet.
-
-Variáveis esperadas:
-
-```text
-ORACLE_ROOT_PASSWORD
-ORACLE_APP_USER
-ORACLE_APP_PASSWORD
-JWT_SECRET_KEY
-```
-
-Depois:
+Exemplo de construção da imagem, a partir da raiz do projeto:
 
 ```bash
-docker compose up -d
-```
-## CI/CD e infraestrutura em nuvem (Azure DevOps)
-
-A API .NET 8, o banco Oracle e o MongoDB rodam containerizados no **Azure Container Instances (ACI)**. Todo o ciclo, do commit ao ambiente no ar, é executado por uma esteira do **Azure Pipelines** conectada a este repositório, sem intervenção manual.
-
-### Resumo
-
-| Item | Valor |
-|---|---|
-| Projeto Azure DevOps | Sprint 4 – Azure DevOps — `https://dev.azure.com/Challenge-FIAP-2TDSPO/Sprint%204%20%E2%80%93%20Azure%20DevOps` |
-| Pipeline | `azure-pipelines.yaml` (modo YAML, na raiz do repositório) |
-| Gatilho | Push na branch `main` dispara CI e, em seguida, CD |
-| Registro de imagens | Azure Container Registry (ACR) |
-| Execução em nuvem | Azure Container Instances, container group `cg-clyvovet` (containers `db-oracle`, `db-mongo` e `clyvo-api`) |
-| Banco de dados em nuvem | Oracle Free em container no mesmo grupo do ACI |
-| Banco NoSQL | MongoDB (`mongo:7`) em container no mesmo grupo, usado pelo histórico clínico |
-| Região | México Central |
-| Agente da pipeline | Self-hosted (pool `Default`), porque a organização não possui paralelismo hospedado liberado |
-
-### Diagrama da arquitetura e do fluxo CI/CD
-
-![Arquitetura e fluxo CI/CD](docs/arquitetura-cicd.jpeg)
-
-### Etapas da pipeline
-
-**CI — Build, testes e artefato**
-
-1. Instala o .NET 8 SDK
-2. `dotnet restore`
-3. `dotnet build`
-4. Testes automatizados com xUnit (28 unitários e 18 de integração); a pipeline falha se algum teste falhar
-5. `dotnet publish` da API
-6. Publica o artefato `drop` no Azure DevOps
-7. Build da imagem Docker e push para o ACR, com as tags `<BuildId>` e `latest`
-
-**CD — Deploy no ACI**, disparado quando o CI termina com sucesso
-
-1. Obtém as credenciais do ACR em tempo de execução
-2. Gera o manifesto do container group (Oracle, MongoDB e API) com os segredos vindos do Variable Group
-3. Remove o container group anterior (o ACI não atualiza a imagem no lugar)
-4. Cria o container group com os containers `db-oracle` e `clyvo-api`
-5. Valida a aplicação em `GET /api/health/db`, com até 40 tentativas
-
-O container `clyvo-api` espera o Oracle aceitar conexões e abrir o banco antes de iniciar. No ACI todos os containers sobem ao mesmo tempo e não existe `depends_on`. Os três containers dividem a rede do grupo, por isso a API acessa o Oracle em `localhost:1521` e o MongoDB em `localhost:27017`.
-
-### Variáveis e segredos protegidos
-
-Nenhuma credencial está no código ou no YAML. Os valores ficam no **Variable Group** `clyvovet-secrets` (Pipelines → Library), com cada variável marcada como *secret*:
-
-- `ORACLE_ROOT_PASSWORD`
-- `ORACLE_APP_USER`
-- `ORACLE_APP_PASSWORD`
-- `JWT_SECRET` (chave de assinatura do token, entregue à API como `Secretkey`)
-
-O acesso à Azure usa **service connections**, sem senha no repositório:
-
-| Service connection | Tipo | Uso |
-|---|---|---|
-| `sc-acr-clyvovet` | Docker Registry | Push da imagem no ACR |
-| `sc-azure-clyvovet` | Azure Resource Manager | Criação do container group no ACI |
-
-### Recursos na Azure
-
-Resource group `rg-clyvovet-aci`, com o ACR e o ACI. Para consultar o ambiente:
-
-```bash
-az container show -g rg-clyvovet-aci -n cg-clyvovet --query "containers[].{nome:name,estado:instanceView.currentState.state}" -o table
-az container logs -g rg-clyvovet-aci -n cg-clyvovet --container-name clyvo-api
+docker build -f RotaLeve.Api/Dockerfile -t rotaleve-api .
 ```
 
-### Como reproduzir
-
-1. Faça uma alteração no código e dê push na branch `main`
-2. Acompanhe a execução em Pipelines → clyvovet-api
-3. Ao final, teste a aplicação:
-
-```bash
-curl http://clyvovet-api-rm562012.mexicocentral.azurecontainer.io:5139/api/health/db
-```
-
-Swagger: `http://clyvovet-api-rm562012.mexicocentral.azurecontainer.io:5139/swagger`
-
-Os endpoints de negócio exigem JWT. No Swagger, cadastre o tutor em `POST /api/tutors`, faça login em `POST /api/tutors/login`, clique em **Authorize** e informe `Bearer {token}`.
-
-### Evidência de persistência no banco
-
-Os testes do CRUD são conferidos com `SELECT` dentro do Oracle:
-
-```bash
-az container exec -g rg-clyvovet-aci -n cg-clyvovet --container-name db-oracle --exec-command "/bin/bash"
-sqlplus $APP_USER/$APP_USER_PASSWORD@localhost:1521/FREEPDB1
-```
-
-```sql
-SELECT ID_TUTOR, NOME, EMAIL FROM TUTOR;
-```
-
-### Observação de operação
-
-O ambiente é criado sob demanda e removido depois dos testes para preservar os créditos da assinatura. A pipeline o recria do zero a cada execução.
+Ao executar a imagem, forneça `Secretkey` e `ConnectionStrings__OracleDbConnection` por variáveis de ambiente ou um mecanismo apropriado de segredos; não as grave no Dockerfile.
 
 ---
 
-## Migrations
+## Segurança e observações para entrega
 
-A pasta:
-
-```text
-ClyvoVet.Api/Infrastructure/Data/Migrations
-```
-
-contém a migration relacional do Oracle.
-
-Para gerar uma nova migration:
-
-```powershell
-dotnet ef migrations add NomeDaMigration --project .\ClyvoVet.Api\ClyvoVet.Api.csproj --startup-project .\ClyvoVet.Api\ClyvoVet.Api.csproj --context ApplicationContext --output-dir Infrastructure\Data\Migrations
-```
-
-Para gerar o script SQL:
-
-```powershell
-dotnet ef migrations script --project .\ClyvoVet.Api\ClyvoVet.Api.csproj --startup-project .\ClyvoVet.Api\ClyvoVet.Api.csproj --context ApplicationContext --output script_bd.sql
-```
-
-As migrations EF Core se aplicam ao banco **relacional Oracle**. O MongoDB não utiliza as migrations relacionais do EF Core.
+- Nunca publique credenciais reais do Oracle ou a `Secretkey` utilizada em ambiente real.
+- O cadastro público de administradores foi mantido **apenas para demonstração acadêmica**; não deve ser exposto dessa maneira em produção.
+- O script SQL em `scripts/script-bd.sql` é material de referência; a criação do esquema fica a cargo das migrations da aplicação.
+- Execute `dotnet build` e `dotnet test` antes do envio final, além de conferir a disponibilidade do Oracle e o comportamento dos endpoints no Swagger.
 
 ---
 
 ## Integrantes
 
-- **Emanuel Italo** - RM: 561337
-- **Enzo Monteiro Maciel** - RM: 563734
-- **Gabriel Bebé Silva** - RM: 562012
-- **Matheus de Almeida Sousa** - RM: 563557
-- **Paulo Estalise** - RM: 563811
+Preencher os nomes completos e RMs dos integrantes do grupo antes da entrega.
 
+| Nome completo | RM |
+|---|---|
+| Emanuel Italo  | 561337 |
+| Enzo Monteiro Maciel  | 563734 |
+| Gabriel Bebé Silva  | 562012 |
+| Matheus de Almeida Sousa  | 563557 |
+| Paulo Estalise  | 563811 |
